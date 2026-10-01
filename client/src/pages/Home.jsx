@@ -21,16 +21,26 @@ import { api } from '../services/api';
 export default function Home() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const isManualMode = searchParams.get('mode') === 'manual' || location.state?.manual;
 
-  const [stage, setStage] = useState(isManualMode ? 'phone_input' : 'checking'); // 'checking' | 'success' | 'phone_input' | 'register_input'
+  // Extract possible parameters from third-party QR codes
+  const urlPhone = searchParams.get('phone') || searchParams.get('p') || searchParams.get('mobile');
+  const urlToken = searchParams.get('token') || searchParams.get('t') || searchParams.get('deviceToken');
+
+  const [stage, setStage] = useState('checking'); // 'checking' | 'success' | 'phone_input' | 'register_input'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [publicInfo, setPublicInfo] = useState(null);
 
   // Data states
   const [result, setResult] = useState(null); // { member, checkInAt, status, alreadyMarked, checkInTimeFormatted, punctuality, punctualityMessage }
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        return urlPhone || localStorage.getItem('bni_member_phone') || '';
+      }
+    } catch (e) {}
+    return urlPhone || '';
+  });
   const [name, setName] = useState('');
   const [company, setCompany] = useState('');
   const [category, setCategory] = useState('');
@@ -42,12 +52,50 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (isManualMode) {
-      setStage('phone_input');
-    } else {
-      attemptDeviceCheckIn();
+    // If URL contains token, persist it
+    if (urlToken && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('bni_device_token', urlToken);
+      } catch (e) {}
     }
-  }, [location.key, isManualMode]);
+
+    // If explicit phone is in QR URL, check in with phone immediately
+    if (urlPhone) {
+      const cleanUrlPhone = urlPhone.replace(/\D/g, '');
+      if (cleanUrlPhone.length === 10) {
+        checkInDirectlyByPhone(cleanUrlPhone);
+        return;
+      }
+    }
+
+    // Always attempt device recognition on QR scan
+    attemptDeviceCheckIn();
+  }, [location.key, urlPhone, urlToken]);
+
+  async function checkInDirectlyByPhone(cleanPhone) {
+    setStage('checking');
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.checkInByPhone(cleanPhone);
+      if (res.success) {
+        if (res.isNew) {
+          setPhone(res.phone || cleanPhone);
+          setStage('register_input');
+        } else {
+          setResult(res);
+          setStage('success');
+        }
+      } else {
+        setStage('phone_input');
+      }
+    } catch (err) {
+      setError(err.message || 'Check-in failed');
+      setStage('phone_input');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function attemptDeviceCheckIn() {
     setStage('checking');
@@ -61,7 +109,7 @@ export default function Home() {
         setStage('phone_input');
       }
     } catch (err) {
-      // 401 or no device cookie
+      // 401 or unrecognized device
       setStage('phone_input');
     }
   }

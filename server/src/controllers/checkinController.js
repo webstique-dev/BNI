@@ -19,12 +19,13 @@ const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 /**
  * Cookie options helper for device_token
  */
-export function getDeviceCookieOptions() {
+export function getDeviceCookieOptions(req) {
   const isProd = process.env.NODE_ENV === 'production';
+  const isHttps = req?.secure || req?.headers?.['x-forwarded-proto'] === 'https';
   return {
     httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? 'none' : 'lax', // 'none' for cross-domain in production if needed, or 'lax'
+    secure: isHttps || isProd,
+    sameSite: 'lax', // 'lax' ensures cookie is reliably sent on QR scan top-level navigation
     maxAge: ONE_YEAR_MS,
     path: '/',
   };
@@ -95,7 +96,7 @@ async function recordAttendance({ memberId, method, userAgent }) {
 /**
  * Helper to create a new device token and set the cookie on the response
  */
-async function linkDeviceAndSetCookie(res, memberId, userAgent = '') {
+async function linkDeviceAndSetCookie(res, memberId, userAgent = '', req = null) {
   const rawToken = generateRandomToken();
   const tokenHash = hashToken(rawToken);
 
@@ -106,22 +107,63 @@ async function linkDeviceAndSetCookie(res, memberId, userAgent = '') {
     lastUsedAt: new Date(),
   });
 
-  res.cookie(DEVICE_COOKIE_NAME, rawToken, getDeviceCookieOptions());
+  res.cookie(DEVICE_COOKIE_NAME, rawToken, getDeviceCookieOptions(req));
   return rawToken;
 }
 
 /**
  * POST /api/checkin/device
- * Auto check-in via device_token cookie
+ * Auto check-in via device_token cookie, header, or body with mobile storage fallback
  */
 export async function checkInByDevice(req, res, next) {
   try {
     const rawToken =
+      req.body?.deviceToken ||
       req.cookies?.[DEVICE_COOKIE_NAME] ||
-      req.headers['x-device-token'] ||
-      req.body?.deviceToken;
+      req.headers['x-device-token'];
 
-    if (!rawToken) {
+    const { memberId, phone } = req.body || {};
+
+    let member = null;
+    let activeDevice = null;
+    let effectiveDeviceToken = rawToken || '';
+
+    // 1. First attempt: recognize by device token
+    if (rawToken) {
+      const tokenHash = hashToken(rawToken);
+      const device = await Device.findOne({ tokenHash }).populate('memberId');
+
+      if (device && device.memberId && device.memberId.isActive) {
+        member = device.memberId;
+        activeDevice = device;
+      }
+    }
+
+    // 2. Secondary fallback: recognize by remembered phone or memberId
+    if (!member && (memberId || phone)) {
+      if (phone) {
+        const normalized = normalizePhone(phone);
+        if (normalized) {
+          member = await Member.findOne({ phone: normalized, isActive: true });
+        }
+      }
+      if (!member && memberId) {
+        member = await Member.findOne({ _id: memberId, isActive: true });
+      }
+
+      // Re-link device seamlessly so subsequent scans work via device token directly
+      if (member) {
+        effectiveDeviceToken = await linkDeviceAndSetCookie(
+          res,
+          member._id,
+          req.headers['user-agent'] || '',
+          req
+        );
+      }
+    }
+
+    if (!member) {
+      res.clearCookie(DEVICE_COOKIE_NAME, getDeviceCookieOptions(req));
       return res.status(401).json({
         success: false,
         needsIdentification: true,
@@ -129,24 +171,12 @@ export async function checkInByDevice(req, res, next) {
       });
     }
 
-    const tokenHash = hashToken(rawToken);
-    const device = await Device.findOne({ tokenHash }).populate('memberId');
-
-    if (!device || !device.memberId || !device.memberId.isActive) {
-      // Token is stale, invalid or member inactive
-      res.clearCookie(DEVICE_COOKIE_NAME, getDeviceCookieOptions());
-      return res.status(401).json({
-        success: false,
-        needsIdentification: true,
-        message: 'Device not recognized or member inactive.',
-      });
+    // Refresh last used timestamp and cookie if device document is found
+    if (activeDevice) {
+      activeDevice.lastUsedAt = new Date();
+      await activeDevice.save();
+      res.cookie(DEVICE_COOKIE_NAME, rawToken, getDeviceCookieOptions(req));
     }
-
-    const member = device.memberId;
-
-    // Update device last used timestamp
-    device.lastUsedAt = new Date();
-    await device.save();
 
     const result = await recordAttendance({
       memberId: member._id,
@@ -157,9 +187,11 @@ export async function checkInByDevice(req, res, next) {
     return res.status(200).json({
       success: true,
       alreadyMarked: result.alreadyMarked,
+      deviceToken: effectiveDeviceToken,
       member: {
         id: member._id,
         name: member.name,
+        phone: member.phone || '',
         company: member.company || '',
         category: member.category || '',
       },

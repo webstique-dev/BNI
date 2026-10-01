@@ -13,10 +13,12 @@ import {
   Check,
   AlertCircle,
   CalendarDays,
+  QrCode,
 } from 'lucide-react';
 import { api } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 import CalendarPicker from '../components/CalendarPicker';
+import ChapterQRCodeModal from '../components/ChapterQRCodeModal';
 import { StatsSkeleton, TableSkeleton } from '../components/Skeleton';
 
 export default function AdminDashboard() {
@@ -37,6 +39,7 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [actionLoading, setActionLoading] = useState({});
   const [message, setMessage] = useState('');
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
   const autoRefreshTimerRef = useRef(null);
 
@@ -165,6 +168,16 @@ export default function AdminDashboard() {
           />
 
           <button
+            type="button"
+            onClick={() => setIsQrModalOpen(true)}
+            className="inline-flex items-center space-x-1.5 px-3.5 py-2.5 rounded-xl bg-bni-charcoal hover:bg-stone-800 text-white shadow-xs text-xs font-bold transition-all"
+            title="View & Download Official Chapter QR Code"
+          >
+            <QrCode className="w-4 h-4 text-bni-gold" />
+            <span>Chapter QR Code</span>
+          </button>
+
+          <button
             onClick={() => loadAttendance(date)}
             disabled={refreshing || loading}
             className="p-2.5 bg-white hover:bg-stone-50 rounded-xl border border-stone-300 shadow-2xs text-stone-600 hover:text-bni-charcoal transition-colors disabled:opacity-50"
@@ -183,6 +196,12 @@ export default function AdminDashboard() {
           </a>
         </div>
       </div>
+
+      {/* Official Chapter QR Code Modal */}
+      <ChapterQRCodeModal
+        isOpen={isQrModalOpen}
+        onClose={() => setIsQrModalOpen(false)}
+      />
 
       {/* Success Notification Banner */}
       {message && (

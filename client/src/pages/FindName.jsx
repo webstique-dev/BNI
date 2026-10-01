@@ -170,8 +170,7 @@ export default function FindName() {
         {/* Navigation back */}
         <div className="mb-4">
           <Link
-            to="/?mode=manual"
-            state={{ manual: true }}
+            to="/"
             className="inline-flex items-center space-x-1.5 text-xs font-semibold text-stone-600 hover:text-bni-red transition-colors py-1.5 px-3 rounded-lg hover:bg-stone-100/60"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -296,8 +295,7 @@ export default function FindName() {
                   Could not find "{query}". Try searching by first name or phone digits.
                 </p>
                 <Link
-                  to="/?mode=manual"
-                  state={{ manual: true }}
+                  to="/"
                   className="mt-3 inline-block text-xs font-semibold text-bni-red hover:underline"
                 >
                   Register with your phone number →

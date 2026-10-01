@@ -42,10 +42,21 @@ async function request(endpoint, options = {}) {
     throw error;
   }
 
-  // Persist device token if provided in response
-  if (data?.deviceToken && typeof window !== 'undefined') {
+  // Persist device token and member details if provided in response
+  if (typeof window !== 'undefined') {
     try {
-      localStorage.setItem('bni_device_token', data.deviceToken);
+      if (data?.deviceToken) {
+        localStorage.setItem('bni_device_token', data.deviceToken);
+      }
+      if (data?.member?.id) {
+        localStorage.setItem('bni_member_id', data.member.id);
+      }
+      if (data?.member?.phone) {
+        localStorage.setItem('bni_member_phone', data.member.phone);
+      }
+      if (data?.member?.name) {
+        localStorage.setItem('bni_member_name', data.member.name);
+      }
     } catch (e) {
       // ignore
     }
@@ -57,7 +68,24 @@ async function request(endpoint, options = {}) {
 export const api = {
   // Public check-in
   getPublicInfo: () => request('/public/info'),
-  checkInByDevice: () => request('/checkin/device', { method: 'POST' }),
+  checkInByDevice: () => {
+    let deviceToken = '';
+    let memberId = '';
+    let phone = '';
+    try {
+      if (typeof window !== 'undefined') {
+        deviceToken = localStorage.getItem('bni_device_token') || '';
+        memberId = localStorage.getItem('bni_member_id') || '';
+        phone = localStorage.getItem('bni_member_phone') || '';
+      }
+    } catch (e) {
+      // ignore
+    }
+    return request('/checkin/device', {
+      method: 'POST',
+      body: JSON.stringify({ deviceToken, memberId, phone }),
+    });
+  },
   checkInByPhone: (phone) =>
     request('/checkin/phone', {
       method: 'POST',
@@ -78,6 +106,9 @@ export const api = {
     try {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('bni_device_token');
+        localStorage.removeItem('bni_member_id');
+        localStorage.removeItem('bni_member_phone');
+        localStorage.removeItem('bni_member_name');
       }
     } catch (e) {
       // ignore
