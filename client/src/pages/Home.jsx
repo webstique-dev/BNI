@@ -25,7 +25,7 @@ export default function Home() {
   const [stage, setStage] = useState(isManualMode ? 'phone_input' : 'checking'); // 'checking' | 'success' | 'phone_input' | 'register_input'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   // Data states
   const [result, setResult] = useState(null); // { member, checkInAt, status, alreadyMarked, checkInTimeFormatted }
   const [phone, setPhone] = useState('');
@@ -148,12 +148,12 @@ export default function Home() {
 
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-8 max-w-md mx-auto w-full">
         {/* TOP BADGE */}
-        <div className="mb-6 text-center">
+        {/* <div className="mb-6 text-center">
           <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-semibold bg-white border border-bni-gold/40 text-bni-charcoal shadow-xs">
             <Sparkles className="w-3.5 h-3.5 text-bni-gold" />
             <span>Weekly Chapter Meeting Attendance</span>
           </span>
-        </div>
+        </div> */}
 
         {/* 1. AUTO DEVICE CHECKING STATE */}
         {stage === 'checking' && (

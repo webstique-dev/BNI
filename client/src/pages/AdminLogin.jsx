@@ -51,12 +51,12 @@ export default function AdminLogin() {
                 className="max-h-full max-w-full object-contain drop-shadow-sm"
               />
             </div>
-            <h2 className="text-2xl font-heading font-bold text-bni-charcoal">
+            {/* <h2 className="text-2xl font-heading font-bold text-bni-charcoal">
               Chapter Admin Login
             </h2>
             <p className="text-xs sm:text-sm text-stone-500 mt-1">
               BNI Jubilant – Chennai CBD A Attendance Management
-            </p>
+            </p> */}
           </div>
 
           {error && (

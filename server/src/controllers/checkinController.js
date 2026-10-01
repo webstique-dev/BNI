@@ -108,7 +108,10 @@ async function linkDeviceAndSetCookie(res, memberId, userAgent = '') {
  */
 export async function checkInByDevice(req, res, next) {
   try {
-    const rawToken = req.cookies?.[DEVICE_COOKIE_NAME];
+    const rawToken =
+      req.cookies?.[DEVICE_COOKIE_NAME] ||
+      req.headers['x-device-token'] ||
+      req.body?.deviceToken;
 
     if (!rawToken) {
       return res.status(401).json({
@@ -197,12 +200,13 @@ export async function checkInByPhone(req, res, next) {
     });
 
     // Link device for one-scan future check-ins
-    await linkDeviceAndSetCookie(res, member._id, req.headers['user-agent'] || '');
+    const deviceToken = await linkDeviceAndSetCookie(res, member._id, req.headers['user-agent'] || '');
 
     return res.status(200).json({
       success: true,
       isNew: false,
       alreadyMarked: result.alreadyMarked,
+      deviceToken,
       member: {
         id: member._id,
         name: member.name,
@@ -265,11 +269,12 @@ export async function registerAndCheckIn(req, res, next) {
       userAgent: req.headers['user-agent'] || '',
     });
 
-    await linkDeviceAndSetCookie(res, newMember._id, req.headers['user-agent'] || '');
+    const deviceToken = await linkDeviceAndSetCookie(res, newMember._id, req.headers['user-agent'] || '');
 
     return res.status(201).json({
       success: true,
       alreadyMarked: false,
+      deviceToken,
       member: {
         id: newMember._id,
         name: newMember.name,
@@ -417,13 +422,15 @@ export async function checkInBySearch(req, res, next) {
       userAgent: req.headers['user-agent'] || '',
     });
 
+    let deviceToken = null;
     if (rememberDevice) {
-      await linkDeviceAndSetCookie(res, member._id, req.headers['user-agent'] || '');
+      deviceToken = await linkDeviceAndSetCookie(res, member._id, req.headers['user-agent'] || '');
     }
 
     return res.status(200).json({
       success: true,
       alreadyMarked: result.alreadyMarked,
+      deviceToken,
       member: {
         id: member._id,
         name: member.name,
@@ -463,11 +470,15 @@ export async function getPublicInfo(req, res, next) {
 
 /**
  * POST /api/checkin/forget-device
- * Clear device_token cookie
+ * Clear device_token cookie and DB record
  */
 export async function forgetDevice(req, res, next) {
   try {
-    const rawToken = req.cookies?.[DEVICE_COOKIE_NAME];
+    const rawToken =
+      req.cookies?.[DEVICE_COOKIE_NAME] ||
+      req.headers['x-device-token'] ||
+      req.body?.deviceToken;
+
     if (rawToken) {
       const tokenHash = hashToken(rawToken);
       await Device.deleteOne({ tokenHash });

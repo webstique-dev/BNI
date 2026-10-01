@@ -12,9 +12,15 @@ async function request(endpoint, options = {}) {
 
   // Attach token from localStorage if present
   try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('bni_admin_token') : null;
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    if (typeof window !== 'undefined') {
+      const adminToken = localStorage.getItem('bni_admin_token');
+      if (adminToken) {
+        headers['Authorization'] = `Bearer ${adminToken}`;
+      }
+      const deviceToken = localStorage.getItem('bni_device_token');
+      if (deviceToken) {
+        headers['x-device-token'] = deviceToken;
+      }
     }
   } catch (e) {
     // ignore
@@ -34,6 +40,15 @@ async function request(endpoint, options = {}) {
     error.status = response.status;
     error.data = data;
     throw error;
+  }
+
+  // Persist device token if provided in response
+  if (data?.deviceToken && typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('bni_device_token', data.deviceToken);
+    } catch (e) {
+      // ignore
+    }
   }
 
   return data;
@@ -59,7 +74,16 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ memberId, phoneLast4, rememberDevice }),
     }),
-  forgetDevice: () => request('/checkin/forget-device', { method: 'POST' }),
+  forgetDevice: async () => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('bni_device_token');
+      }
+    } catch (e) {
+      // ignore
+    }
+    return request('/checkin/forget-device', { method: 'POST' });
+  },
 
   // Admin Auth & Management
   adminLogin: ({ username, password }) =>
