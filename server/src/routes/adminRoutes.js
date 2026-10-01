@@ -5,6 +5,9 @@ import {
   adminLogin,
   adminLogout,
   getAdminMe,
+  getAdmins,
+  createAdmin,
+  deleteAdmin,
 } from '../controllers/adminAuthController.js';
 import {
   getAttendanceByDate,
@@ -67,10 +70,23 @@ const manualAttendanceSchema = z.object({
   }),
 });
 
+const createAdminSchema = z.object({
+  body: z.object({
+    username: z.string().min(3, 'Username must be at least 3 characters'),
+    password: z.string().min(6, 'Password must be at least 6 characters'),
+    name: z.string().optional(),
+  }),
+});
+
 // Authentication endpoints
 router.post('/admin/login', loginLimiter, validate(loginSchema), adminLogin);
 router.post('/admin/logout', adminLogout);
 router.get('/admin/me', requireAdmin, getAdminMe);
+
+// Admin User Management
+router.get('/admin/admins', requireAdmin, getAdmins);
+router.post('/admin/admins', requireAdmin, validate(createAdminSchema), createAdmin);
+router.delete('/admin/admins/:id', requireAdmin, deleteAdmin);
 
 // Attendance endpoints
 router.get('/admin/attendance', requireAdmin, getAttendanceByDate);

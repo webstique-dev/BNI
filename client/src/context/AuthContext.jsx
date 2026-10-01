@@ -30,6 +30,9 @@ export function AuthProvider({ children }) {
   async function login(username, password) {
     const res = await api.adminLogin({ username, password });
     if (res?.success && res.admin) {
+      if (res.token) {
+        localStorage.setItem('bni_admin_token', res.token);
+      }
       setAdmin(res.admin);
       return res.admin;
     }
@@ -42,6 +45,7 @@ export function AuthProvider({ children }) {
     } catch (err) {
       // ignore
     } finally {
+      localStorage.removeItem('bni_admin_token');
       setAdmin(null);
     }
   }

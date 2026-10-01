@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import Admin from '../models/Admin.js';
 import { ADMIN_COOKIE_NAME } from '../middleware/auth.js';
 
@@ -56,7 +57,7 @@ export async function adminLogin(req, res, next) {
 
     return res.status(200).json({
       success: true,
-      token, // Also provide token for non-cookie / header clients if needed
+      token, // Provide token for Authorization header storage
       admin: {
         id: admin._id,
         username: admin.username,
@@ -100,3 +101,114 @@ export async function getAdminMe(req, res, next) {
     next(error);
   }
 }
+
+/**
+ * GET /api/admin/admins
+ * List all admin accounts
+ */
+export async function getAdmins(req, res, next) {
+  try {
+    const admins = await Admin.find().select('-passwordHash').sort({ createdAt: -1 });
+    return res.status(200).json({
+      success: true,
+      admins,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /api/admin/admins
+ * Create a new admin account
+ */
+export async function createAdmin(req, res, next) {
+  try {
+    const { username, password, name } = req.body;
+
+    if (!username || username.trim().length < 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username must be at least 3 characters long.',
+      });
+    }
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long.',
+      });
+    }
+
+    const cleanUsername = username.toLowerCase().trim();
+    const existing = await Admin.findOne({ username: cleanUsername });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: `Admin username "${cleanUsername}" already exists.`,
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const newAdmin = await Admin.create({
+      username: cleanUsername,
+      passwordHash,
+      name: name?.trim() || 'Chapter Admin',
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Admin account "${cleanUsername}" created successfully.`,
+      admin: {
+        id: newAdmin._id,
+        username: newAdmin.username,
+        name: newAdmin.name,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * DELETE /api/admin/admins/:id
+ * Delete an admin account
+ */
+export async function deleteAdmin(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    // Prevent deleting self
+    if (req.admin._id.toString() === id) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot delete your own admin account while logged in.',
+      });
+    }
+
+    // Ensure at least 1 admin remains
+    const adminCount = await Admin.countDocuments();
+    if (adminCount <= 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete the only remaining admin account.',
+      });
+    }
+
+    const deleted = await Admin.findByIdAndDelete(id);
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Admin account not found.',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Admin account "${deleted.username}" deleted successfully.`,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+

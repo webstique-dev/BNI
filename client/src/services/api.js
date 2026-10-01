@@ -10,6 +10,16 @@ async function request(endpoint, options = {}) {
     headers['Content-Type'] = 'application/json';
   }
 
+  // Attach token from localStorage if present
+  try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('bni_admin_token') : null;
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  } catch (e) {
+    // ignore
+  }
+
   const response = await fetch(url, {
     ...options,
     headers,
@@ -51,7 +61,7 @@ export const api = {
     }),
   forgetDevice: () => request('/checkin/forget-device', { method: 'POST' }),
 
-  // Admin Auth
+  // Admin Auth & Management
   adminLogin: ({ username, password }) =>
     request('/admin/login', {
       method: 'POST',
@@ -59,6 +69,13 @@ export const api = {
     }),
   adminLogout: () => request('/admin/logout', { method: 'POST' }),
   getAdminMe: () => request('/admin/me'),
+  getAdmins: () => request('/admin/admins'),
+  createAdmin: ({ username, password, name }) =>
+    request('/admin/admins', {
+      method: 'POST',
+      body: JSON.stringify({ username, password, name }),
+    }),
+  deleteAdmin: (id) => request(`/admin/admins/${id}`, { method: 'DELETE' }),
 
   // Admin Attendance
   getAttendance: (date) =>
