@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Shield, Lock, User, AlertCircle, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Header from '../components/Header';
+import bniLogo from '../assests/BNI_Jubilant_Chennai_CBD_logo.png';
 
 export default function AdminLogin() {
   const [username, setUsername] = useState('');
@@ -42,8 +43,12 @@ export default function AdminLogin() {
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-12 max-w-md mx-auto w-full">
         <div className="w-full bg-white rounded-3xl p-6 sm:p-8 shadow-card border border-bni-gold/30">
           <div className="text-center mb-6">
-            <div className="w-14 h-14 bg-gradient-to-br from-bni-red to-bni-red-dark text-white rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-md border border-bni-gold/40">
-              <Shield className="w-7 h-7 text-bni-gold" />
+            <div className="w-20 h-16 mx-auto mb-3 flex items-center justify-center">
+              <img
+                src={bniLogo}
+                alt="BNI Jubilant Logo"
+                className="max-h-full max-w-full object-contain drop-shadow-sm"
+              />
             </div>
             <h2 className="text-2xl font-heading font-bold text-bni-charcoal">
               Chapter Admin Login

@@ -10,7 +10,8 @@ import {
   Shield,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import LoadingSpinner from '../components/LoadingSpinner';
+import { Preloader } from '../components/Skeleton';
+import bniLogo from '../assests/BNI_Jubilant_Chennai_CBD_logo.png';
 
 export default function AdminLayout() {
   const { admin, loading, logout } = useAuth();
@@ -19,7 +20,7 @@ export default function AdminLayout() {
   if (loading) {
     return (
       <div className="min-h-screen bg-bni-cream flex items-center justify-center">
-        <LoadingSpinner size="lg" text="Loading Admin Portal..." />
+        <Preloader text="Loading Admin Portal..." />
       </div>
     );
   }
@@ -48,8 +49,12 @@ export default function AdminLayout() {
           <div className="flex items-center justify-between h-16">
             {/* Left: Brand */}
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-8 bg-bni-red rounded-lg flex items-center justify-center font-extrabold text-white text-base shadow border border-bni-gold/40">
-                BNI
+              <div className="h-10 w-auto flex items-center justify-center">
+                <img
+                  src={bniLogo}
+                  alt="BNI Jubilant Logo"
+                  className="h-9 w-auto object-contain brightness-110"
+                />
               </div>
               <div>
                 <div className="flex items-center space-x-2">

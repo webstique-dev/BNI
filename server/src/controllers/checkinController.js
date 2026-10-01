@@ -288,11 +288,35 @@ export async function registerAndCheckIn(req, res, next) {
 
 /**
  * GET /api/members/search?q=
- * Public member search by name (returns ONLY name and ID, NEVER phone numbers)
+ * Public member search by name or phone (returns name, company, category, maskedPhone, NEVER full phone numbers)
  */
 export async function searchMembers(req, res, next) {
   try {
     const q = req.query.q ? String(req.query.q).trim() : '';
+
+    // If q is 'all', return all active members for client-side instant fuzzy search
+    if (q === '__all__') {
+      const allMembers = await Member.find(
+        { isActive: true },
+        { _id: 1, name: 1, company: 1, category: 1, phone: 1 }
+      )
+        .sort({ name: 1 })
+        .lean();
+
+      const formatted = allMembers.map((m) => ({
+        id: m._id,
+        name: m.name,
+        company: m.company || '',
+        category: m.category || '',
+        maskedPhone: m.phone ? '******' + m.phone.slice(-4) : '',
+        last4: m.phone ? m.phone.slice(-4) : '',
+      }));
+
+      return res.status(200).json({
+        success: true,
+        results: formatted,
+      });
+    }
 
     if (!q || q.length < 2) {
       return res.status(200).json({
@@ -303,14 +327,26 @@ export async function searchMembers(req, res, next) {
 
     // Escape regex special characters
     const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const digitsOnly = q.replace(/\D/g, '');
+
+    const orConditions = [
+      { name: { $regex: escaped, $options: 'i' } },
+      { company: { $regex: escaped, $options: 'i' } },
+      { category: { $regex: escaped, $options: 'i' } },
+    ];
+
+    if (digitsOnly.length >= 2) {
+      orConditions.push({ phone: { $regex: digitsOnly, $options: 'i' } });
+    }
+
     const members = await Member.find(
       {
-        name: { $regex: escaped, $options: 'i' },
+        $or: orConditions,
         isActive: true,
       },
-      { _id: 1, name: 1, company: 1, category: 1 } // NEVER include phone
+      { _id: 1, name: 1, company: 1, category: 1, phone: 1 }
     )
-      .limit(10)
+      .limit(15)
       .sort({ name: 1 })
       .lean();
 
@@ -319,6 +355,8 @@ export async function searchMembers(req, res, next) {
       name: m.name,
       company: m.company || '',
       category: m.category || '',
+      maskedPhone: m.phone ? '******' + m.phone.slice(-4) : '',
+      last4: m.phone ? m.phone.slice(-4) : '',
     }));
 
     return res.status(200).json({

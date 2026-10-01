@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import Fuse from 'fuse.js';
 import {
   Search,
   ArrowLeft,
@@ -11,21 +12,24 @@ import {
   KeyRound,
   Sparkles,
   Smartphone,
+  Phone,
+  Hash,
 } from 'lucide-react';
 import Header from '../components/Header';
 import Modal from '../components/Modal';
 import SuccessCheckmark from '../components/SuccessCheckmark';
 import StatusBadge from '../components/StatusBadge';
-import LoadingSpinner from '../components/LoadingSpinner';
+import { SearchResultSkeleton } from '../components/Skeleton';
 import { api } from '../services/api';
 
 export default function FindName() {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
+  const [allMembers, setAllMembers] = useState([]);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
   
-  // Public settings (e.g. requirePhoneLast4)
+  // Public settings
   const [publicInfo, setPublicInfo] = useState({
     requirePhoneLast4OnSearch: true,
   });
@@ -41,45 +45,75 @@ export default function FindName() {
   const [checkInResult, setCheckInResult] = useState(null);
 
   useEffect(() => {
-    loadPublicInfo();
+    loadPublicInfoAndMembers();
   }, []);
 
-  async function loadPublicInfo() {
+  async function loadPublicInfoAndMembers() {
     try {
-      const res = await api.getPublicInfo();
-      if (res.success) {
-        setPublicInfo(res);
+      setInitialLoading(true);
+      const [infoRes, membersRes] = await Promise.all([
+        api.getPublicInfo().catch(() => null),
+        api.searchMembers('__all__').catch(() => null),
+      ]);
+
+      if (infoRes?.success) {
+        setPublicInfo(infoRes);
+      }
+      if (membersRes?.success && Array.isArray(membersRes.results)) {
+        setAllMembers(membersRes.results);
       }
     } catch (e) {
-      // ignore
+      console.error('Error loading members:', e);
+    } finally {
+      setInitialLoading(false);
     }
   }
 
-  // Debounced search
-  useEffect(() => {
-    if (!query.trim() || query.trim().length < 2) {
-      setResults([]);
-      setSearching(false);
-      return;
+  // Setup Fuse.js index for instantaneous client-side search
+  const fuse = useMemo(() => {
+    return new Fuse(allMembers, {
+      keys: [
+        { name: 'name', weight: 0.5 },
+        { name: 'company', weight: 0.2 },
+        { name: 'category', weight: 0.15 },
+        { name: 'last4', weight: 0.15 },
+      ],
+      threshold: 0.35,
+      ignoreLocation: true,
+      minMatchCharLength: 2,
+    });
+  }, [allMembers]);
+
+  // Compute matched results instantly from memory
+  const results = useMemo(() => {
+    const q = query.trim();
+    if (!q || q.length < 1) return [];
+
+    // If numbers entered (like last 4 digits)
+    const digitsOnly = q.replace(/\D/g, '');
+    if (digitsOnly.length >= 2) {
+      const phoneMatches = allMembers.filter(
+        (m) => m.last4?.includes(digitsOnly) || m.maskedPhone?.includes(digitsOnly)
+      );
+      if (phoneMatches.length > 0) return phoneMatches.slice(0, 10);
     }
 
-    const timer = setTimeout(async () => {
-      setSearching(true);
-      setSearchError('');
-      try {
-        const res = await api.searchMembers(query.trim());
-        if (res.success) {
-          setResults(res.results || []);
-        }
-      } catch (err) {
-        setSearchError(err.message || 'Error searching members.');
-      } finally {
-        setSearching(false);
-      }
-    }, 300);
+    if (fuse && allMembers.length > 0) {
+      const fuseResults = fuse.search(q);
+      return fuseResults.slice(0, 10).map((r) => r.item);
+    }
 
-    return () => clearTimeout(timer);
-  }, [query]);
+    // Fallback simple filter
+    const lower = q.toLowerCase();
+    return allMembers
+      .filter(
+        (m) =>
+          m.name.toLowerCase().includes(lower) ||
+          m.company.toLowerCase().includes(lower) ||
+          m.category.toLowerCase().includes(lower)
+      )
+      .slice(0, 10);
+  }, [query, fuse, allMembers]);
 
   function handleSelectMember(member) {
     setSelectedMember(member);
@@ -121,7 +155,6 @@ export default function FindName() {
   function handleReset() {
     setCheckInResult(null);
     setQuery('');
-    setResults([]);
   }
 
   return (
@@ -199,43 +232,33 @@ export default function FindName() {
                   Find Your Name
                 </h2>
                 <p className="text-xs sm:text-sm text-stone-500 mt-0.5">
-                  Type at least 2 characters to search chapter members.
+                  Search by member name, company, or last 4 digits of phone.
                 </p>
               </div>
 
-              {/* Search input */}
+              {/* Fast Search input */}
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-bni-gold" />
                 <input
                   type="text"
-                  placeholder="e.g. Ramesh Kumar..."
+                  placeholder="e.g. Ramesh, Apex CA, or 2345..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   autoFocus
-                  className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-stone-300 focus:border-bni-red focus:ring-2 focus:ring-bni-red/20 text-base font-medium text-bni-charcoal outline-none transition-all placeholder:text-stone-300"
+                  className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-stone-300 focus:border-bni-red focus:ring-2 focus:ring-bni-red/20 text-base font-medium text-bni-charcoal outline-none transition-all placeholder:text-stone-300 shadow-2xs"
                 />
               </div>
             </div>
 
+            {/* Skeleton Loading while fetching directory */}
+            {initialLoading && <SearchResultSkeleton count={3} />}
+
             {/* Results List */}
-            {searching && (
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-stone-100 text-center">
-                <LoadingSpinner size="sm" text="Searching chapter roster..." />
-              </div>
-            )}
-
-            {searchError && (
-              <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
-                <span>{searchError}</span>
-              </div>
-            )}
-
-            {!searching && query.trim().length >= 2 && results.length === 0 && (
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-stone-200 text-center">
+            {!initialLoading && query.trim().length >= 1 && results.length === 0 && (
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-stone-200 text-center animate-scale-in">
                 <p className="text-sm font-semibold text-stone-700">No member found</p>
                 <p className="text-xs text-stone-400 mt-1">
-                  Could not find "{query}". Try searching by first name or check your spelling.
+                  Could not find "{query}". Try searching by first name or phone digits.
                 </p>
                 <Link
                   to="/?mode=manual"
@@ -248,9 +271,10 @@ export default function FindName() {
             )}
 
             {results.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-card border border-stone-200 divide-y divide-stone-100 overflow-hidden">
-                <div className="px-4 py-2.5 bg-stone-50 text-[11px] font-bold text-stone-500 uppercase tracking-wider">
-                  Select your name to check in
+              <div className="bg-white rounded-2xl shadow-card border border-stone-200 divide-y divide-stone-100 overflow-hidden animate-scale-in">
+                <div className="px-4 py-2.5 bg-stone-50 text-[11px] font-bold text-stone-500 uppercase tracking-wider flex items-center justify-between">
+                  <span>Select your name to check in</span>
+                  <span className="text-bni-gold-dark font-mono font-semibold">{results.length} found</span>
                 </div>
                 {results.map((member) => (
                   <button
@@ -262,14 +286,17 @@ export default function FindName() {
                       <h4 className="font-bold text-sm text-bni-charcoal group-hover:text-bni-red transition-colors">
                         {member.name}
                       </h4>
-                      {member.company && (
-                        <p className="text-xs text-stone-500 mt-0.5 font-medium">
-                          {member.company}
-                          {member.category ? ` • ${member.category}` : ''}
-                        </p>
-                      )}
+                      <div className="flex items-center space-x-2 text-xs text-stone-500 mt-0.5 font-medium">
+                        {member.company && <span>{member.company}</span>}
+                        {member.category && <span>• {member.category}</span>}
+                        {member.maskedPhone && (
+                          <span className="text-[11px] font-mono text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">
+                            {member.maskedPhone}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <span className="shrink-0 ml-2 px-3 py-1 rounded-full text-xs font-semibold bg-bni-red-light text-bni-red group-hover:bg-bni-red group-hover:text-white transition-all">
+                    <span className="shrink-0 ml-2 px-3 py-1 rounded-full text-xs font-semibold bg-bni-red-light text-bni-red group-hover:bg-bni-red group-hover:text-white transition-all shadow-xs">
                       Select
                     </span>
                   </button>

@@ -12,10 +12,12 @@ import {
   Trash2,
   Check,
   AlertCircle,
+  CalendarDays,
 } from 'lucide-react';
 import { api } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
-import LoadingSpinner from '../components/LoadingSpinner';
+import CalendarPicker from '../components/CalendarPicker';
+import { StatsSkeleton, TableSkeleton } from '../components/Skeleton';
 
 export default function AdminDashboard() {
   // Today's date in local Asia/Kolkata or user date
@@ -156,15 +158,11 @@ export default function AdminDashboard() {
 
         {/* Date picker & Actions */}
         <div className="flex items-center flex-wrap gap-2">
-          <div className="relative flex items-center bg-white rounded-xl border border-stone-300 shadow-2xs px-3 py-2">
-            <Calendar className="w-4 h-4 text-bni-gold mr-2 shrink-0" />
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="text-xs sm:text-sm font-semibold text-bni-charcoal outline-none bg-transparent"
-            />
-          </div>
+          <CalendarPicker
+            value={date}
+            onChange={(newDate) => setDate(newDate)}
+            label="Meeting Date"
+          />
 
           <button
             onClick={() => loadAttendance(date)}
@@ -195,84 +193,88 @@ export default function AdminDashboard() {
       )}
 
       {/* Stat Cards Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Present Card */}
-        <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-card flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">
-              Present (On Time)
-            </p>
-            <h3 className="text-3xl font-extrabold text-bni-charcoal mt-1">
-              {counts.present}
-            </h3>
-            <p className="text-[11px] text-stone-400 mt-0.5">
-              Before {data?.meeting?.startTime || '08:00'}
-            </p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-        </div>
-
-        {/* Late Card */}
-        <div className="bg-white rounded-2xl p-5 border border-amber-100 shadow-card flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">
-              Late Check-ins
-            </p>
-            <h3 className="text-3xl font-extrabold text-bni-charcoal mt-1">
-              {counts.late}
-            </h3>
-            <p className="text-[11px] text-stone-400 mt-0.5">
-              After {data?.meeting?.startTime || '08:00'}
-            </p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600">
-            <Clock className="w-6 h-6" />
-          </div>
-        </div>
-
-        {/* Absent Card */}
-        <div className="bg-white rounded-2xl p-5 border border-rose-100 shadow-card flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold text-rose-700 uppercase tracking-wider">
-              Absent
-            </p>
-            <h3 className="text-3xl font-extrabold text-bni-charcoal mt-1">
-              {counts.absent}
-            </h3>
-            <p className="text-[11px] text-stone-400 mt-0.5">
-              Not checked in yet
-            </p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-600">
-            <XCircle className="w-6 h-6" />
-          </div>
-        </div>
-
-        {/* Total Members & Rate Card */}
-        <div className="bg-white rounded-2xl p-5 border border-bni-gold/30 shadow-card flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold text-bni-gold-dark uppercase tracking-wider">
-              Turnout Rate
-            </p>
-            <div className="flex items-baseline space-x-1.5 mt-1">
-              <h3 className="text-3xl font-extrabold text-bni-charcoal">
-                {attendanceRate}%
+      {loading ? (
+        <StatsSkeleton />
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-scale-in">
+          {/* Present Card */}
+          <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-card flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">
+                Present (On Time)
+              </p>
+              <h3 className="text-3xl font-extrabold text-bni-charcoal mt-1">
+                {counts.present}
               </h3>
-              <span className="text-xs text-stone-500 font-medium">
-                ({counts.present + counts.late}/{counts.total})
-              </span>
+              <p className="text-[11px] text-stone-400 mt-0.5">
+                Before {data?.meeting?.startTime || '08:00'}
+              </p>
             </div>
-            <p className="text-[11px] text-stone-400 mt-0.5">
-              {counts.total} active members
-            </p>
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-bni-gold-light flex items-center justify-center text-bni-gold-dark">
-            <Users className="w-6 h-6" />
+
+          {/* Late Card */}
+          <div className="bg-white rounded-2xl p-5 border border-amber-100 shadow-card flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">
+                Late Check-ins
+              </p>
+              <h3 className="text-3xl font-extrabold text-bni-charcoal mt-1">
+                {counts.late}
+              </h3>
+              <p className="text-[11px] text-stone-400 mt-0.5">
+                After {data?.meeting?.startTime || '08:00'}
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600">
+              <Clock className="w-6 h-6" />
+            </div>
+          </div>
+
+          {/* Absent Card */}
+          <div className="bg-white rounded-2xl p-5 border border-rose-100 shadow-card flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-rose-700 uppercase tracking-wider">
+                Absent
+              </p>
+              <h3 className="text-3xl font-extrabold text-bni-charcoal mt-1">
+                {counts.absent}
+              </h3>
+              <p className="text-[11px] text-stone-400 mt-0.5">
+                Not checked in yet
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-600">
+              <XCircle className="w-6 h-6" />
+            </div>
+          </div>
+
+          {/* Total Members & Rate Card */}
+          <div className="bg-white rounded-2xl p-5 border border-bni-gold/30 shadow-card flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-bni-gold-dark uppercase tracking-wider">
+                Turnout Rate
+              </p>
+              <div className="flex items-baseline space-x-1.5 mt-1">
+                <h3 className="text-3xl font-extrabold text-bni-charcoal">
+                  {attendanceRate}%
+                </h3>
+                <span className="text-xs text-stone-500 font-medium">
+                  ({counts.present + counts.late}/{counts.total})
+                </span>
+              </div>
+              <p className="text-[11px] text-stone-400 mt-0.5">
+                {counts.total} active members
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-bni-gold-light flex items-center justify-center text-bni-gold-dark">
+              <Users className="w-6 h-6" />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Main Attendance List Section */}
       <div className="bg-white rounded-3xl shadow-card border border-stone-200 overflow-hidden">
@@ -315,9 +317,7 @@ export default function AdminDashboard() {
 
         {/* Attendance Table */}
         {loading ? (
-          <div className="py-12">
-            <LoadingSpinner text="Loading chapter attendance..." />
-          </div>
+          <TableSkeleton rows={6} />
         ) : displayedList.length === 0 ? (
           <div className="py-12 text-center text-stone-400 text-sm">
             No records found for the selected filter.

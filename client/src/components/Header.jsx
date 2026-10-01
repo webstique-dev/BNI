@@ -1,18 +1,29 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Shield, Sparkles } from 'lucide-react';
+import bniLogo from '../assests/BNI_Jubilant_Chennai_CBD_logo.png';
 
 export default function Header({ showAdminLink = true, subtitle = 'Jubilant · Chennai CBD A' }) {
+  const [imgError, setImgError] = useState(false);
+
   return (
     <header className="w-full bg-white border-b border-bni-gold/20 shadow-sm sticky top-0 z-40">
-      <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between">
         {/* Logo & Chapter Brand */}
         <Link to="/" className="flex items-center space-x-3 group">
           <div className="relative flex items-center">
-            {/* BNI Brand Badge */}
-            <div className="w-12 h-10 bg-gradient-to-br from-bni-red to-bni-red-dark rounded-lg flex items-center justify-center shadow-md text-white font-extrabold text-xl tracking-tight transition-transform group-hover:scale-105 border border-bni-gold/40">
-              BNI
-            </div>
+            {!imgError ? (
+              <img
+                src={bniLogo}
+                alt="BNI Jubilant Logo"
+                onError={() => setImgError(true)}
+                className="h-11 sm:h-12 w-auto object-contain transition-transform group-hover:scale-105"
+              />
+            ) : (
+              <div className="w-12 h-10 bg-gradient-to-br from-bni-red to-bni-red-dark rounded-lg flex items-center justify-center shadow-md text-white font-extrabold text-xl tracking-tight border border-bni-gold/40">
+                BNI
+              </div>
+            )}
           </div>
           <div>
             <div className="flex items-center space-x-1.5">

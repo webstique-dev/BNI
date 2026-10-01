@@ -17,7 +17,7 @@ import {
 import Header from '../components/Header';
 import SuccessCheckmark from '../components/SuccessCheckmark';
 import StatusBadge from '../components/StatusBadge';
-import LoadingSpinner from '../components/LoadingSpinner';
+import { Preloader } from '../components/Skeleton';
 import { api } from '../services/api';
 
 export default function Home() {
@@ -152,9 +152,8 @@ export default function Home() {
 
         {/* 1. AUTO DEVICE CHECKING STATE */}
         {stage === 'checking' && (
-          <div className="w-full bg-white rounded-3xl p-8 shadow-card border border-bni-gold/20 text-center">
-            <LoadingSpinner size="lg" text="Recognizing your device..." />
-            <p className="text-xs text-stone-400 mt-2">Checking your secure attendance token</p>
+          <div className="w-full bg-white rounded-3xl p-6 shadow-card border border-bni-gold/20 text-center">
+            <Preloader text="Recognizing your device..." />
           </div>
         )}
 

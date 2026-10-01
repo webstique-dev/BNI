@@ -12,10 +12,11 @@ import {
   AlertCircle,
   FileText,
   X,
+  Users,
 } from 'lucide-react';
 import { api } from '../services/api';
 import Modal from '../components/Modal';
-import LoadingSpinner from '../components/LoadingSpinner';
+import { TableSkeleton } from '../components/Skeleton';
 
 export default function AdminMembers() {
   const [members, setMembers] = useState([]);
@@ -273,9 +274,7 @@ export default function AdminMembers() {
       {/* Members Table */}
       <div className="bg-white rounded-3xl shadow-card border border-stone-200 overflow-hidden">
         {loading ? (
-          <div className="py-12">
-            <LoadingSpinner text="Loading chapter members..." />
-          </div>
+          <TableSkeleton rows={6} />
         ) : members.length === 0 ? (
           <div className="py-12 text-center text-stone-400 text-sm">
             No members found.
