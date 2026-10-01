@@ -1,0 +1,17 @@
+{
+  "name": "bni-jubilant-attendance",
+  "version": "1.0.0",
+  "description": "Full-stack QR Attendance System for BNI Jubilant Chennai CBD A",
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "dev": "node -e \"console.log('Use separate terminals for server (cd server && npm run dev) and client (cd client && npm run dev)')\"",
+    "build:client": "npm --prefix client run build",
+    "seed": "npm --prefix server run seed",
+    "test": "npm --prefix server test"
+  },
+  "keywords": ["bni", "attendance", "qr-code", "express", "react", "mongodb"],
+  "author": "",
+  "license": "ISC"
+}
