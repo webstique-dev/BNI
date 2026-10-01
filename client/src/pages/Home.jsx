@@ -11,7 +11,6 @@ import {
   Clock,
   Sparkles,
   ArrowRight,
-  RefreshCw,
   LogOut,
 } from 'lucide-react';
 import Header from '../components/Header';
@@ -198,18 +197,10 @@ export default function Home() {
               Device linked securely for future one-scan check-ins.
             </div>
 
-            <div className="mt-6 space-y-2">
-              <button
-                onClick={handleReset}
-                className="w-full py-3.5 px-4 rounded-xl border border-stone-200 text-stone-700 font-semibold hover:bg-stone-50 transition-colors text-sm flex items-center justify-center space-x-2 shadow-2xs"
-              >
-                <RefreshCw className="w-4 h-4 text-bni-gold" />
-                <span>Mark for another member</span>
-              </button>
-
+            <div className="mt-6">
               <button
                 onClick={handleForgetDevice}
-                className="w-full py-2 px-3 text-stone-400 hover:text-stone-600 transition-colors text-xs font-medium flex items-center justify-center space-x-1"
+                className="w-full py-2.5 px-3 text-stone-400 hover:text-stone-600 hover:bg-stone-50 rounded-xl transition-colors text-xs font-medium flex items-center justify-center space-x-1.5"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>Not {result.member?.name}? Switch phone / Unlink device</span>
