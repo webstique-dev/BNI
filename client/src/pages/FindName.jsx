@@ -14,6 +14,8 @@ import {
   Smartphone,
   Phone,
   Hash,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import Header from '../components/Header';
 import Modal from '../components/Modal';
@@ -37,6 +39,7 @@ export default function FindName() {
   // Selected member for check-in modal
   const [selectedMember, setSelectedMember] = useState(null);
   const [phoneLast4, setPhoneLast4] = useState('');
+  const [showPin, setShowPin] = useState(false);
   const [rememberDevice, setRememberDevice] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [modalError, setModalError] = useState('');
@@ -339,16 +342,29 @@ export default function FindName() {
                   <div className="relative">
                     <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
                     <input
-                      type="password"
+                      type={showPin ? 'text' : 'password'}
                       inputMode="numeric"
+                      pattern="[0-9]*"
                       maxLength={4}
                       placeholder="• • • •"
                       value={phoneLast4}
-                      onChange={(e) => setPhoneLast4(e.target.value.replace(/\D/g, ''))}
+                      onChange={(e) => setPhoneLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
                       autoFocus
                       required
-                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-stone-300 focus:border-bni-red focus:ring-2 focus:ring-bni-red/20 text-center tracking-widest text-lg font-bold outline-none"
+                      className="w-full pl-10 pr-10 py-3 rounded-xl border border-stone-300 focus:border-bni-red focus:ring-2 focus:ring-bni-red/20 text-center tracking-widest text-lg font-bold outline-none"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPin(!showPin)}
+                      aria-label={showPin ? 'Hide PIN' : 'Show PIN'}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-stone-400 hover:text-stone-600 focus:outline-none transition-colors"
+                    >
+                      {showPin ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
                   </div>
                 </div>
               )}

@@ -83,10 +83,19 @@ export default function AdminMembers() {
 
   async function handleAddMember(e) {
     e.preventDefault();
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      setErrorMessage('Phone number must be exactly 10 digits.');
+      return;
+    }
+    if (!name.trim()) {
+      setErrorMessage('Member name is required.');
+      return;
+    }
     setFormSubmitting(true);
     setErrorMessage('');
     try {
-      await api.createMember({ name, phone, company, category });
+      await api.createMember({ name: name.trim(), phone: cleanPhone, company: company.trim(), category: category.trim() });
       setIsAddModalOpen(false);
       setMessage('Member added successfully.');
       setTimeout(() => setMessage(''), 3000);
@@ -101,10 +110,19 @@ export default function AdminMembers() {
   async function handleUpdateMember(e) {
     e.preventDefault();
     if (!selectedMember) return;
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      setErrorMessage('Phone number must be exactly 10 digits.');
+      return;
+    }
+    if (!name.trim()) {
+      setErrorMessage('Member name is required.');
+      return;
+    }
     setFormSubmitting(true);
     setErrorMessage('');
     try {
-      await api.updateMember(selectedMember._id, { name, phone, company, category });
+      await api.updateMember(selectedMember._id, { name: name.trim(), phone: cleanPhone, company: company.trim(), category: category.trim() });
       setIsEditModalOpen(false);
       setMessage('Member updated successfully.');
       setTimeout(() => setMessage(''), 3000);
@@ -417,9 +435,12 @@ export default function AdminMembers() {
             </label>
             <input
               type="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={10}
               placeholder="e.g. 9840123456"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
               required
               className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm outline-none focus:border-bni-red"
             />
@@ -502,8 +523,12 @@ export default function AdminMembers() {
             </label>
             <input
               type="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={10}
+              placeholder="e.g. 9840123456"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
               required
               className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm outline-none focus:border-bni-red"
             />

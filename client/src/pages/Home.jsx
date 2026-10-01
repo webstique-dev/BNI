@@ -3,8 +3,6 @@ import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import {
   Phone,
   User,
-  Building,
-  Briefcase,
   Search,
   CheckCircle,
   AlertCircle,
@@ -62,7 +60,8 @@ export default function Home() {
 
   async function handlePhoneSubmit(e) {
     e.preventDefault();
-    if (!phone || phone.replace(/\D/g, '').length < 10) {
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
       setError('Please enter a valid 10-digit mobile number');
       return;
     }
@@ -70,11 +69,11 @@ export default function Home() {
     setLoading(true);
     setError('');
     try {
-      const res = await api.checkInByPhone(phone);
+      const res = await api.checkInByPhone(cleanPhone);
       if (res.success) {
         if (res.isNew) {
           // Member not found in database, prompt to register
-          setPhone(res.phone || phone);
+          setPhone(res.phone || cleanPhone);
           setStage('register_input');
         } else {
           // Member recognized & checked in!
@@ -91,8 +90,15 @@ export default function Home() {
 
   async function handleRegisterSubmit(e) {
     e.preventDefault();
-    if (!name.trim() || name.trim().length < 2) {
+    const trimmedName = name.trim();
+    if (!trimmedName || trimmedName.length < 2) {
       setError('Please enter your full name');
+      return;
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      setError('Please enter a valid 10-digit mobile number');
       return;
     }
 
@@ -100,8 +106,8 @@ export default function Home() {
     setError('');
     try {
       const res = await api.registerAndCheckIn({
-        phone,
-        name: name.trim(),
+        phone: cleanPhone,
+        name: trimmedName,
         company: company.trim(),
         category: category.trim(),
       });
@@ -237,21 +243,23 @@ export default function Home() {
                   Mobile Number
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-500 font-medium text-sm">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-500 font-semibold text-sm">
                     +91
                   </span>
                   <input
                     type="tel"
                     inputMode="numeric"
-                    placeholder="98401 23456"
-                    maxLength={14}
+                    pattern="[0-9]*"
+                    placeholder="9840123456"
+                    maxLength={10}
                     value={phone}
                     onChange={(e) => {
-                      setPhone(e.target.value);
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setPhone(val);
                       setError('');
                     }}
                     autoFocus
-                    className="w-full pl-14 pr-4 py-3.5 rounded-xl border border-stone-300 focus:border-bni-red focus:ring-2 focus:ring-bni-red/20 text-lg font-medium text-bni-charcoal outline-none transition-all tracking-wider placeholder:text-stone-300"
+                    className="w-full pl-14 pr-4 py-3.5 rounded-xl border border-stone-300 focus:border-bni-red focus:ring-2 focus:ring-bni-red/20 text-lg font-semibold text-bni-charcoal outline-none transition-all tracking-wider placeholder:text-stone-300"
                   />
                 </div>
               </div>
@@ -306,7 +314,7 @@ export default function Home() {
               </div>
             )}
 
-            <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
+            <form onSubmit={handleRegisterSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1">
                   Full Name <span className="text-bni-red">*</span>
@@ -315,10 +323,13 @@ export default function Home() {
                   type="text"
                   placeholder="e.g. Ramesh Kumar"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setError('');
+                  }}
                   autoFocus
                   required
-                  className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-bni-red focus:ring-2 focus:ring-bni-red/20 text-sm font-medium text-bni-charcoal outline-none transition-all"
+                  className="w-full px-4 py-3.5 rounded-xl border border-stone-300 focus:border-bni-red focus:ring-2 focus:ring-bni-red/20 text-sm font-medium text-bni-charcoal outline-none transition-all"
                 />
               </div>
 
@@ -328,35 +339,9 @@ export default function Home() {
                 </label>
                 <input
                   type="text"
-                  value={phone}
+                  value={`+91 ${phone}`}
                   disabled
-                  className="w-full px-4 py-3 rounded-xl border border-stone-200 bg-stone-50 text-stone-500 text-sm font-medium outline-none cursor-not-allowed"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1">
-                  Company / Firm Name
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Apex Chartered Accountants"
-                  value={company}
-                  onChange={(e) => setCompany(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-bni-red focus:ring-2 focus:ring-bni-red/20 text-sm font-medium text-bni-charcoal outline-none transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1">
-                  Business Classification
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Chartered Accountant"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-bni-red focus:ring-2 focus:ring-bni-red/20 text-sm font-medium text-bni-charcoal outline-none transition-all"
+                  className="w-full px-4 py-3.5 rounded-xl border border-stone-200 bg-stone-50 text-stone-600 text-sm font-semibold outline-none cursor-not-allowed tracking-wider"
                 />
               </div>
 

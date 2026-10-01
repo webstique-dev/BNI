@@ -12,6 +12,8 @@ import {
   Trash2,
   Lock,
   User,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -32,6 +34,7 @@ export default function AdminSettings() {
   const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
   const [newAdminUsername, setNewAdminUsername] = useState('');
   const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [showNewAdminPassword, setShowNewAdminPassword] = useState(false);
   const [newAdminName, setNewAdminName] = useState('');
   const [adminFormSubmitting, setAdminFormSubmitting] = useState(false);
   const [adminActionError, setAdminActionError] = useState('');
@@ -402,14 +405,26 @@ export default function AdminSettings() {
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
               <input
-                type="password"
+                type={showNewAdminPassword ? 'text' : 'password'}
                 placeholder="Min 6 characters"
                 value={newAdminPassword}
                 onChange={(e) => setNewAdminPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-stone-300 text-sm outline-none focus:border-bni-red"
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-stone-300 text-sm outline-none focus:border-bni-red"
               />
+              <button
+                type="button"
+                onClick={() => setShowNewAdminPassword(!showNewAdminPassword)}
+                aria-label={showNewAdminPassword ? 'Hide password' : 'Show password'}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-stone-400 hover:text-stone-600 focus:outline-none transition-colors"
+              >
+                {showNewAdminPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
             </div>
           </div>
 
