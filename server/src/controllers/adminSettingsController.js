@@ -1,4 +1,6 @@
 import Settings from '../models/Settings.js';
+import Meeting from '../models/Meeting.js';
+import { getKolkataToday } from '../utils/time.js';
 
 /**
  * GET /api/admin/settings
@@ -33,10 +35,14 @@ export async function updateSettings(req, res, next) {
       if (!/^\d{2}:\d{2}$/.test(defaultStartTime)) {
         return res.status(400).json({
           success: false,
-          message: 'Start time must be in HH:mm 24-hour format (e.g. 08:00).',
+          message: 'Expected login time must be in HH:mm 24-hour format (e.g. 08:00).',
         });
       }
       settings.defaultStartTime = defaultStartTime;
+
+      // Dynamically sync today's meeting start time if it exists
+      const today = getKolkataToday();
+      await Meeting.updateMany({ date: today }, { $set: { startTime: defaultStartTime } });
     }
 
     if (graceMinutes !== undefined) {
@@ -48,6 +54,9 @@ export async function updateSettings(req, res, next) {
         });
       }
       settings.graceMinutes = parsedGrace;
+
+      const today = getKolkataToday();
+      await Meeting.updateMany({ date: today }, { $set: { graceMinutes: parsedGrace } });
     }
 
     if (requirePhoneLast4OnSearch !== undefined) {
@@ -58,7 +67,7 @@ export async function updateSettings(req, res, next) {
 
     return res.status(200).json({
       success: true,
-      message: 'Settings updated successfully.',
+      message: 'Chapter settings saved successfully.',
       settings,
     });
   } catch (error) {

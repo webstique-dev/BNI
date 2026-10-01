@@ -8,6 +8,7 @@ import { normalizePhone, isValidPhone } from '../utils/phone.js';
 import {
   getKolkataToday,
   calculateAttendanceStatus,
+  calculatePunctuality,
   formatKolkataTime,
 } from '../utils/time.js';
 import { generateRandomToken, hashToken } from '../utils/token.js';
@@ -73,14 +74,21 @@ async function recordAttendance({ memberId, method, userAgent }) {
     }
   }
 
+  const effectiveCheckInAt = attendance.checkInAt || checkInDate;
+  const punctualityResult = calculatePunctuality(effectiveCheckInAt, today, startTime);
+
   return {
     attendance,
     alreadyMarked,
     status: attendance.status,
-    checkInAt: attendance.checkInAt,
+    checkInAt: effectiveCheckInAt,
     meetingDate: today,
     startTime,
     graceMinutes,
+    punctuality: punctualityResult.punctuality,
+    punctualityMessage: punctualityResult.message,
+    expectedStartTime: startTime,
+    expectedStartTimeFormatted: punctualityResult.expectedTime,
   };
 }
 
@@ -158,6 +166,10 @@ export async function checkInByDevice(req, res, next) {
       checkInAt: result.checkInAt,
       checkInTimeFormatted: formatKolkataTime(result.checkInAt),
       status: result.status,
+      punctuality: result.punctuality,
+      punctualityMessage: result.punctualityMessage,
+      expectedStartTime: result.startTime,
+      expectedStartTimeFormatted: result.expectedStartTimeFormatted,
       meetingDate: result.meetingDate,
     });
   } catch (error) {
@@ -216,6 +228,10 @@ export async function checkInByPhone(req, res, next) {
       checkInAt: result.checkInAt,
       checkInTimeFormatted: formatKolkataTime(result.checkInAt),
       status: result.status,
+      punctuality: result.punctuality,
+      punctualityMessage: result.punctualityMessage,
+      expectedStartTime: result.startTime,
+      expectedStartTimeFormatted: result.expectedStartTimeFormatted,
       meetingDate: result.meetingDate,
     });
   } catch (error) {
@@ -284,6 +300,10 @@ export async function registerAndCheckIn(req, res, next) {
       checkInAt: result.checkInAt,
       checkInTimeFormatted: formatKolkataTime(result.checkInAt),
       status: result.status,
+      punctuality: result.punctuality,
+      punctualityMessage: result.punctualityMessage,
+      expectedStartTime: result.startTime,
+      expectedStartTimeFormatted: result.expectedStartTimeFormatted,
       meetingDate: result.meetingDate,
     });
   } catch (error) {
@@ -440,6 +460,10 @@ export async function checkInBySearch(req, res, next) {
       checkInAt: result.checkInAt,
       checkInTimeFormatted: formatKolkataTime(result.checkInAt),
       status: result.status,
+      punctuality: result.punctuality,
+      punctualityMessage: result.punctualityMessage,
+      expectedStartTime: result.startTime,
+      expectedStartTimeFormatted: result.expectedStartTimeFormatted,
       meetingDate: result.meetingDate,
     });
   } catch (error) {

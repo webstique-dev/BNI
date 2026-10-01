@@ -14,6 +14,7 @@ import {
 import Header from '../components/Header';
 import SuccessCheckmark from '../components/SuccessCheckmark';
 import StatusBadge from '../components/StatusBadge';
+import PunctualityToast from '../components/PunctualityToast';
 import { Preloader } from '../components/Skeleton';
 import { api } from '../services/api';
 
@@ -25,13 +26,20 @@ export default function Home() {
   const [stage, setStage] = useState(isManualMode ? 'phone_input' : 'checking'); // 'checking' | 'success' | 'phone_input' | 'register_input'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [publicInfo, setPublicInfo] = useState(null);
 
   // Data states
-  const [result, setResult] = useState(null); // { member, checkInAt, status, alreadyMarked, checkInTimeFormatted }
+  const [result, setResult] = useState(null); // { member, checkInAt, status, alreadyMarked, checkInTimeFormatted, punctuality, punctualityMessage }
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [company, setCompany] = useState('');
   const [category, setCategory] = useState('');
+
+  useEffect(() => {
+    api.getPublicInfo().then((res) => {
+      if (res?.success) setPublicInfo(res);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (isManualMode) {
@@ -165,6 +173,14 @@ export default function Home() {
         {/* 2. SUCCESS STATE */}
         {stage === 'success' && result && (
           <div className="w-full bg-white rounded-3xl p-6 sm:p-8 shadow-card border border-bni-gold/30 text-center animate-scale-in">
+            {result.punctualityMessage && (
+              <PunctualityToast
+                message={result.punctualityMessage}
+                punctuality={result.punctuality}
+                memberName={result.member?.name}
+              />
+            )}
+
             <SuccessCheckmark isLate={result.status === 'late'} />
 
             {result.alreadyMarked && (
@@ -183,6 +199,28 @@ export default function Home() {
                 {result.member.company}
                 {result.member.category ? ` • ${result.member.category}` : ''}
               </p>
+            )}
+
+            {/* Polite arrival message banner */}
+            {result.punctualityMessage && (
+              <div
+                className={`mt-4 p-3.5 rounded-2xl text-xs sm:text-sm font-medium flex items-start space-x-2.5 transition-all text-left ${
+                  result.punctuality === 'late'
+                    ? 'bg-amber-50/90 border border-amber-200/80 text-amber-900'
+                    : 'bg-emerald-50/90 border border-emerald-200/80 text-emerald-900'
+                }`}
+              >
+                {result.punctuality === 'early' && (
+                  <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                )}
+                {result.punctuality === 'on_time' && (
+                  <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                )}
+                {result.punctuality === 'late' && (
+                  <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                )}
+                <span className="leading-relaxed">{result.punctualityMessage}</span>
+              </div>
             )}
 
             <div className="my-6 p-4 rounded-2xl bg-bni-cream/80 border border-bni-gold/20 flex items-center justify-between">
@@ -374,7 +412,17 @@ export default function Home() {
       </main>
 
       <footer className="w-full py-4 text-center text-xs text-stone-400 border-t border-stone-200/50">
-        <p>BNI Jubilant Chapter · Chennai CBD A · Weekly Meeting at 8:00 AM IST</p>
+        <p>
+          {publicInfo?.chapterName || 'BNI Jubilant Chapter · Chennai CBD A'} · Weekly Meeting at{' '}
+          {(() => {
+            const timeStr = publicInfo?.defaultStartTime || '08:00';
+            const [h, m] = timeStr.split(':').map(Number);
+            const period = h >= 12 ? 'PM' : 'AM';
+            const displayH = h % 12 || 12;
+            return `${displayH}:${String(m).padStart(2, '0')} ${period}`;
+          })()}{' '}
+          IST
+        </p>
       </footer>
     </div>
   );

@@ -204,11 +204,22 @@ export default function AdminSettings() {
           </div>
         </div>
 
-        {/* Meeting Start Time */}
+        {/* Expected Member Login Time */}
         <div>
-          <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-2">
-            Meeting Start Time (24h format HH:mm IST)
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider">
+              Expected Member Login Time (Default: 8:00 AM)
+            </label>
+            <span className="text-xs font-bold font-mono px-2.5 py-0.5 rounded-full bg-bni-gold/15 text-bni-gold-dark border border-bni-gold/30">
+              {(() => {
+                if (!defaultStartTime || !defaultStartTime.includes(':')) return '8:00 AM';
+                const [h, m] = defaultStartTime.split(':').map(Number);
+                const period = h >= 12 ? 'PM' : 'AM';
+                const displayH = h % 12 || 12;
+                return `${displayH}:${String(m).padStart(2, '0')} ${period}`;
+              })()}
+            </span>
+          </div>
           <div className="relative">
             <Clock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
             <input
@@ -219,8 +230,8 @@ export default function AdminSettings() {
               className="w-full pl-10 pr-4 py-3 rounded-xl border border-stone-300 text-sm font-semibold text-bni-charcoal outline-none focus:border-bni-red"
             />
           </div>
-          <p className="text-[11px] text-stone-400 mt-1">
-            Members checking in after this time will be marked as "Late".
+          <p className="text-[11px] text-stone-500 mt-1.5 leading-relaxed">
+            Baseline expected time for chapter meetings. When members log in, their actual arrival time is dynamically compared against this configured time to show early, on-time, or late arrival messages.
           </p>
         </div>
 

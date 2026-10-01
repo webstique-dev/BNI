@@ -16,11 +16,13 @@ import {
   Hash,
   Eye,
   EyeOff,
+  Clock,
 } from 'lucide-react';
 import Header from '../components/Header';
 import Modal from '../components/Modal';
 import SuccessCheckmark from '../components/SuccessCheckmark';
 import StatusBadge from '../components/StatusBadge';
+import PunctualityToast from '../components/PunctualityToast';
 import { SearchResultSkeleton } from '../components/Skeleton';
 import { api } from '../services/api';
 
@@ -180,6 +182,14 @@ export default function FindName() {
         {/* If Check-in succeeded */}
         {checkInResult ? (
           <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-card border border-bni-gold/30 text-center animate-scale-in">
+            {checkInResult.punctualityMessage && (
+              <PunctualityToast
+                message={checkInResult.punctualityMessage}
+                punctuality={checkInResult.punctuality}
+                memberName={checkInResult.member?.name}
+              />
+            )}
+
             <SuccessCheckmark isLate={checkInResult.status === 'late'} />
 
             {checkInResult.alreadyMarked && (
@@ -197,6 +207,28 @@ export default function FindName() {
               <p className="text-sm font-medium text-bni-gold-dark mt-0.5">
                 {checkInResult.member.company}
               </p>
+            )}
+
+            {/* Polite arrival message banner */}
+            {checkInResult.punctualityMessage && (
+              <div
+                className={`mt-4 p-3.5 rounded-2xl text-xs sm:text-sm font-medium flex items-start space-x-2.5 transition-all text-left ${
+                  checkInResult.punctuality === 'late'
+                    ? 'bg-amber-50/90 border border-amber-200/80 text-amber-900'
+                    : 'bg-emerald-50/90 border border-emerald-200/80 text-emerald-900'
+                }`}
+              >
+                {checkInResult.punctuality === 'early' && (
+                  <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                )}
+                {checkInResult.punctuality === 'on_time' && (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                )}
+                {checkInResult.punctuality === 'late' && (
+                  <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                )}
+                <span className="leading-relaxed">{checkInResult.punctualityMessage}</span>
+              </div>
             )}
 
             <div className="my-6 p-4 rounded-2xl bg-bni-cream/80 border border-bni-gold/20 flex items-center justify-between">

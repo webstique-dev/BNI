@@ -200,6 +200,51 @@ describe('BNI Attendance Unit & Integration Tests', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.member.name).toBe('Priya Sundaram');
+      expect(res.body.punctualityMessage).toBeDefined();
+    });
+  });
+
+  // 5. Member Login Punctuality & Messages
+  describe('Member Login Expected Time & Punctuality Messages', () => {
+    test('displays early message when logging in before expected time', async () => {
+      const { calculatePunctuality } = await import('../src/utils/time.js');
+      // 07:50 AM IST
+      const checkInDate = new Date('2026-10-01T02:20:00.000Z');
+      const result = calculatePunctuality(checkInDate, '2026-10-01', '08:00');
+
+      expect(result.punctuality).toBe('early');
+      expect(result.message).toBe("Congratulations! You've arrived early. Thank you for being punctual. Keep it up!");
+    });
+
+    test('displays right on time message when logging in exactly at expected time', async () => {
+      const { calculatePunctuality } = await import('../src/utils/time.js');
+      // 08:00 AM IST
+      const checkInDate = new Date('2026-10-01T02:30:00.000Z');
+      const result = calculatePunctuality(checkInDate, '2026-10-01', '08:00');
+
+      expect(result.punctuality).toBe('on_time');
+      expect(result.message).toBe("Congratulations! You're right on time. Thank you for your punctuality!");
+    });
+
+    test('displays late message when logging in after expected time', async () => {
+      const { calculatePunctuality } = await import('../src/utils/time.js');
+      // 08:15 AM IST
+      const checkInDate = new Date('2026-10-01T02:45:00.000Z');
+      const result = calculatePunctuality(checkInDate, '2026-10-01', '08:00');
+
+      expect(result.punctuality).toBe('late');
+      expect(result.message).toBe("You're a little late today. No worries! Let's try to be on time tomorrow. Thank you!");
+    });
+
+    test('dynamically respects admin updated login time', async () => {
+      const { calculatePunctuality } = await import('../src/utils/time.js');
+      // 08:15 AM IST - when expected time is updated to 08:30 AM, 08:15 AM becomes early!
+      const checkInDate = new Date('2026-10-01T02:45:00.000Z');
+      const resultUpdated = calculatePunctuality(checkInDate, '2026-10-01', '08:30');
+
+      expect(resultUpdated.punctuality).toBe('early');
+      expect(resultUpdated.message).toBe("Congratulations! You've arrived early. Thank you for being punctual. Keep it up!");
     });
   });
 });
+

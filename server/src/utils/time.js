@@ -73,7 +73,7 @@ export function calculateAttendanceStatus(
   const checkInKolkata = toKolkata(checkInDate);
   
   // Create cutoff time for the meeting date in Asia/Kolkata
-  const [hours, minutes] = startTimeStr.split(':').map(Number);
+  const [hours, minutes] = (startTimeStr || '08:00').split(':').map(Number);
   const cutoffTime = dayjs.tz(meetingDateStr, TIMEZONE)
     .hour(hours)
     .minute(minutes + (Number(graceMinutes) || 0))
@@ -84,4 +84,50 @@ export function calculateAttendanceStatus(
   return checkInKolkata.isAfter(cutoffTime) ? 'late' : 'present';
 }
 
+/**
+ * Calculates member login punctuality relative to the expected login time
+ * in the server's configured timezone.
+ *
+ * @param {Date|string|number} checkInDate - Actual timestamp of member login
+ * @param {string} meetingDateStr - 'YYYY-MM-DD' in server timezone
+ * @param {string} expectedStartTimeStr - 'HH:mm' 24-hr format (e.g. '08:00')
+ * @returns {{ punctuality: 'early'|'on_time'|'late', message: string, expectedTime: string }}
+ */
+export function calculatePunctuality(
+  checkInDate,
+  meetingDateStr = getKolkataToday(),
+  expectedStartTimeStr = '08:00'
+) {
+  const checkInKolkata = toKolkata(checkInDate);
+  const [hours, minutes] = (expectedStartTimeStr || '08:00').split(':').map(Number);
+
+  const expectedTime = dayjs.tz(meetingDateStr, TIMEZONE)
+    .hour(hours)
+    .minute(minutes)
+    .second(0)
+    .millisecond(0);
+
+  // Compare at minute precision in configured timezone
+  if (checkInKolkata.isBefore(expectedTime, 'minute')) {
+    return {
+      punctuality: 'early',
+      message: "Congratulations! You've arrived early. Thank you for being punctual. Keep it up!",
+      expectedTime: expectedTime.format('h:mm A'),
+    };
+  } else if (checkInKolkata.isSame(expectedTime, 'minute')) {
+    return {
+      punctuality: 'on_time',
+      message: "Congratulations! You're right on time. Thank you for your punctuality!",
+      expectedTime: expectedTime.format('h:mm A'),
+    };
+  } else {
+    return {
+      punctuality: 'late',
+      message: "You're a little late today. No worries! Let's try to be on time tomorrow. Thank you!",
+      expectedTime: expectedTime.format('h:mm A'),
+    };
+  }
+}
+
 export default dayjs;
+
