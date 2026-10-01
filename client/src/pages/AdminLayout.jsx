@@ -48,7 +48,7 @@ export default function AdminLayout() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Left: Brand */}
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2.5">
               <div className="h-10 w-auto flex items-center justify-center">
                 <img
                   src={bniLogo}
@@ -56,19 +56,9 @@ export default function AdminLayout() {
                   className="h-9 w-auto object-contain brightness-110"
                 />
               </div>
-              <div>
-                <div className="flex items-center space-x-2">
-                  <h1 className="text-base font-bold tracking-tight font-heading">
-                    JUBILANT
-                  </h1>
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-bni-gold text-bni-charcoal">
-                    Admin
-                  </span>
-                </div>
-                <p className="text-[11px] text-stone-400 font-normal">
-                  Chennai CBD A Chapter
-                </p>
-              </div>
+              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-bni-gold text-bni-charcoal shadow-2xs">
+                Admin
+              </span>
             </div>
 
             {/* Right: Quick actions & Logout */}
