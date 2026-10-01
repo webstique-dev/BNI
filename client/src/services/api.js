@@ -184,19 +184,69 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  // Admin Reports
+  // Admin Reports & Excel Exports
   getReports: ({ from, to }) => {
     const params = new URLSearchParams();
     if (from) params.append('from', from);
     if (to) params.append('to', to);
     return request(`/admin/reports?${params.toString()}`);
   },
-  getExportUrl: ({ from, to, type = 'summary', date }) => {
+
+  getExportUrl: ({ from, to, type = 'summary', date, format = 'xlsx' }) => {
     const params = new URLSearchParams();
     if (from) params.append('from', from);
     if (to) params.append('to', to);
     if (type) params.append('type', type);
     if (date) params.append('date', date);
-    return `${BASE_URL}/admin/reports/export.csv?${params.toString()}`;
+
+    const adminToken = typeof window !== 'undefined' ? localStorage.getItem('bni_admin_token') : null;
+    if (adminToken) {
+      params.append('token', adminToken);
+    }
+
+    const endpoint = format === 'csv' ? 'export.csv' : 'export.xlsx';
+    return `${BASE_URL}/admin/reports/${endpoint}?${params.toString()}`;
+  },
+
+  downloadAttendanceExcel: async ({ from, to, type = 'summary', date }) => {
+    const params = new URLSearchParams();
+    if (from) params.append('from', from);
+    if (to) params.append('to', to);
+    if (type) params.append('type', type);
+    if (date) params.append('date', date);
+
+    const headers = {};
+    const adminToken = typeof window !== 'undefined' ? localStorage.getItem('bni_admin_token') : null;
+    if (adminToken) {
+      headers['Authorization'] = `Bearer ${adminToken}`;
+      params.append('token', adminToken);
+    }
+
+    const url = `${BASE_URL}/admin/reports/export.xlsx?${params.toString()}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const isJson = response.headers.get('content-type')?.includes('application/json');
+      const errData = isJson ? await response.json() : await response.text();
+      const error = new Error(errData?.message || 'Failed to download Excel report.');
+      throw error;
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = type === 'daily'
+      ? `BNI_Attendance_${date || 'daily'}.xlsx`
+      : `BNI_Attendance_Report_${from || 'start'}_to_${to || 'end'}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(downloadUrl);
+    return true;
   },
 };

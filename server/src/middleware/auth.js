@@ -15,6 +15,11 @@ export async function requireAdmin(req, res, next) {
       token = req.headers.authorization.split(' ')[1];
     }
 
+    // Fallback to query param token for direct export downloads
+    if (!token && (req.query?.token || req.query?.auth_token)) {
+      token = req.query.token || req.query.auth_token;
+    }
+
     if (!token) {
       return res.status(401).json({
         success: false,

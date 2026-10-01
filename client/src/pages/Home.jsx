@@ -42,8 +42,6 @@ export default function Home() {
     return urlPhone || '';
   });
   const [name, setName] = useState('');
-  const [company, setCompany] = useState('');
-  const [category, setCategory] = useState('');
 
   useEffect(() => {
     api.getPublicInfo().then((res) => {
@@ -164,8 +162,6 @@ export default function Home() {
       const res = await api.registerAndCheckIn({
         phone: cleanPhone,
         name: trimmedName,
-        company: company.trim(),
-        category: category.trim(),
       });
 
       if (res.success) {
@@ -184,8 +180,6 @@ export default function Home() {
     setResult(null);
     setPhone('');
     setName('');
-    setCompany('');
-    setCategory('');
     setError('');
   }
 
@@ -241,13 +235,6 @@ export default function Home() {
             <h2 className="text-2xl sm:text-3xl font-heading font-bold text-bni-charcoal mt-1">
               Welcome, {result.member?.name}!
             </h2>
-
-            {result.member?.company && (
-              <p className="text-sm font-medium text-bni-gold-dark mt-0.5">
-                {result.member.company}
-                {result.member.category ? ` • ${result.member.category}` : ''}
-              </p>
-            )}
 
             {/* Polite arrival message banner */}
             {result.punctualityMessage && (

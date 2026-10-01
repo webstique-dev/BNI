@@ -30,6 +30,7 @@ import {
 } from '../controllers/adminSettingsController.js';
 import {
   getAttendanceReports,
+  exportReportExcel,
   exportReportCsv,
 } from '../controllers/adminReportsController.js';
 import { requireAdmin } from '../middleware/auth.js';
@@ -109,6 +110,8 @@ router.put('/admin/settings', requireAdmin, updateSettings);
 
 // Reports & Export
 router.get('/admin/reports', requireAdmin, getAttendanceReports);
+router.get('/admin/reports/export.xlsx', requireAdmin, exportReportExcel);
+router.get('/admin/reports/export', requireAdmin, exportReportExcel);
 router.get('/admin/reports/export.csv', requireAdmin, exportReportCsv);
 
 export default router;

@@ -78,10 +78,8 @@ export default function FindName() {
   const fuse = useMemo(() => {
     return new Fuse(allMembers, {
       keys: [
-        { name: 'name', weight: 0.5 },
-        { name: 'company', weight: 0.2 },
-        { name: 'category', weight: 0.15 },
-        { name: 'last4', weight: 0.15 },
+        { name: 'name', weight: 0.7 },
+        { name: 'last4', weight: 0.3 },
       ],
       threshold: 0.35,
       ignoreLocation: true,
@@ -111,12 +109,7 @@ export default function FindName() {
     // Fallback simple filter
     const lower = q.toLowerCase();
     return allMembers
-      .filter(
-        (m) =>
-          m.name.toLowerCase().includes(lower) ||
-          m.company.toLowerCase().includes(lower) ||
-          m.category.toLowerCase().includes(lower)
-      )
+      .filter((m) => m.name.toLowerCase().includes(lower))
       .slice(0, 10);
   }, [query, fuse, allMembers]);
 
@@ -202,12 +195,6 @@ export default function FindName() {
               Welcome, {checkInResult.member?.name}!
             </h2>
 
-            {checkInResult.member?.company && (
-              <p className="text-sm font-medium text-bni-gold-dark mt-0.5">
-                {checkInResult.member.company}
-              </p>
-            )}
-
             {/* Polite arrival message banner */}
             {checkInResult.punctualityMessage && (
               <div
@@ -266,7 +253,7 @@ export default function FindName() {
                   Find Your Name
                 </h2>
                 <p className="text-xs sm:text-sm text-stone-500 mt-0.5">
-                  Search by member name, company, or last 4 digits of phone.
+                  Search by member name or last 4 digits of phone.
                 </p>
               </div>
 
@@ -275,7 +262,7 @@ export default function FindName() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-bni-gold" />
                 <input
                   type="text"
-                  placeholder="e.g. Ramesh, Apex CA, or 2345..."
+                  placeholder="e.g. Ramesh or 2345..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   autoFocus
@@ -320,8 +307,6 @@ export default function FindName() {
                         {member.name}
                       </h4>
                       <div className="flex items-center space-x-2 text-xs text-stone-500 mt-0.5 font-medium">
-                        {member.company && <span>{member.company}</span>}
-                        {member.category && <span>• {member.category}</span>}
                         {member.maskedPhone && (
                           <span className="text-[11px] font-mono text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">
                             {member.maskedPhone}
@@ -355,9 +340,6 @@ export default function FindName() {
                   <h4 className="font-bold text-sm text-bni-charcoal">
                     {selectedMember.name}
                   </h4>
-                  {selectedMember.company && (
-                    <p className="text-xs text-stone-500">{selectedMember.company}</p>
-                  )}
                 </div>
               </div>
 

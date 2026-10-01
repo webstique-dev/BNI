@@ -35,8 +35,6 @@ export default function AdminMembers() {
   // Form inputs
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [company, setCompany] = useState('');
-  const [category, setCategory] = useState('');
   const [formSubmitting, setFormSubmitting] = useState(false);
 
   // CSV Import state
@@ -65,8 +63,6 @@ export default function AdminMembers() {
   function openAddModal() {
     setName('');
     setPhone('');
-    setCompany('');
-    setCategory('');
     setErrorMessage('');
     setIsAddModalOpen(true);
   }
@@ -75,8 +71,6 @@ export default function AdminMembers() {
     setSelectedMember(m);
     setName(m.name);
     setPhone(m.phone);
-    setCompany(m.company || '');
-    setCategory(m.category || '');
     setErrorMessage('');
     setIsEditModalOpen(true);
   }
@@ -95,7 +89,7 @@ export default function AdminMembers() {
     setFormSubmitting(true);
     setErrorMessage('');
     try {
-      await api.createMember({ name: name.trim(), phone: cleanPhone, company: company.trim(), category: category.trim() });
+      await api.createMember({ name: name.trim(), phone: cleanPhone });
       setIsAddModalOpen(false);
       setMessage('Member added successfully.');
       setTimeout(() => setMessage(''), 3000);
@@ -122,7 +116,7 @@ export default function AdminMembers() {
     setFormSubmitting(true);
     setErrorMessage('');
     try {
-      await api.updateMember(selectedMember._id, { name: name.trim(), phone: cleanPhone, company: company.trim(), category: category.trim() });
+      await api.updateMember(selectedMember._id, { name: name.trim(), phone: cleanPhone });
       setIsEditModalOpen(false);
       setMessage('Member updated successfully.');
       setTimeout(() => setMessage(''), 3000);
@@ -211,7 +205,7 @@ export default function AdminMembers() {
             Chapter Members Directory
           </h2>
           <p className="text-xs sm:text-sm text-stone-500">
-            Manage members, phone numbers, classifications, and linked devices
+            Manage members, phone numbers, and linked devices
           </p>
         </div>
 
@@ -281,7 +275,7 @@ export default function AdminMembers() {
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
           <input
             type="text"
-            placeholder="Search by name, phone, company..."
+            placeholder="Search by name, phone..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-3 py-2 rounded-xl border border-stone-200 text-xs font-medium text-bni-charcoal outline-none focus:border-bni-red"
@@ -304,7 +298,6 @@ export default function AdminMembers() {
                 <tr className="bg-stone-50/70 border-b border-stone-100 text-[11px] font-bold text-stone-500 uppercase tracking-wider">
                   <th className="py-3.5 px-4">Member Name</th>
                   <th className="py-3.5 px-4">Phone Number</th>
-                  <th className="py-3.5 px-4">Company & Classification</th>
                   <th className="py-3.5 px-4">Linked Devices</th>
                   <th className="py-3.5 px-4">Status</th>
                   <th className="py-3.5 px-4 text-right">Actions</th>
@@ -328,15 +321,6 @@ export default function AdminMembers() {
 
                     <td className="py-3.5 px-4 font-mono text-xs text-stone-600 font-medium">
                       +91 {m.phone}
-                    </td>
-
-                    <td className="py-3.5 px-4">
-                      <p className="text-xs font-semibold text-stone-700">
-                        {m.company || '—'}
-                      </p>
-                      <p className="text-[11px] text-stone-400">
-                        {m.category || ''}
-                      </p>
                     </td>
 
                     <td className="py-3.5 px-4">
@@ -446,32 +430,6 @@ export default function AdminMembers() {
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1">
-              Company Name
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Apex Chartered Accountants"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm outline-none focus:border-bni-red"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1">
-              Classification
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Chartered Accountant"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm outline-none focus:border-bni-red"
-            />
-          </div>
-
           <div className="pt-2 flex items-center space-x-2">
             <button
               type="button"
@@ -534,30 +492,6 @@ export default function AdminMembers() {
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1">
-              Company Name
-            </label>
-            <input
-              type="text"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm outline-none focus:border-bni-red"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1">
-              Classification
-            </label>
-            <input
-              type="text"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm outline-none focus:border-bni-red"
-            />
-          </div>
-
           <div className="pt-2 flex items-center space-x-2">
             <button
               type="button"
@@ -588,7 +522,7 @@ export default function AdminMembers() {
           <p className="text-xs text-stone-500">
             Upload a CSV file or paste CSV text with headers:{' '}
             <code className="bg-stone-100 px-1 py-0.5 rounded text-bni-charcoal font-semibold">
-              name, phone, company, category
+              name, phone
             </code>
           </p>
 
@@ -635,7 +569,7 @@ export default function AdminMembers() {
             </label>
             <textarea
               rows={5}
-              placeholder="name,phone,company,category&#10;Ramesh Kumar,9840112345,Apex CA,Chartered Accountant&#10;Priya Sundaram,9840223456,Sundaram Legal,Lawyer"
+              placeholder="name,phone&#10;Ramesh Kumar,9840112345&#10;Priya Sundaram,9840223456"
               value={csvText}
               onChange={(e) => setCsvText(e.target.value)}
               className="w-full p-3 rounded-xl border border-stone-300 font-mono text-xs outline-none focus:border-bni-red"
