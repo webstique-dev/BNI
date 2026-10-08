@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import Settings from '../models/Settings.js';
 import Meeting from '../models/Meeting.js';
 import { getKolkataToday } from '../utils/time.js';
@@ -22,7 +23,14 @@ export async function getSettings(req, res, next) {
  */
 export async function updateSettings(req, res, next) {
   try {
-    const { chapterName, defaultStartTime, graceMinutes, requirePhoneLast4OnSearch } = req.body;
+    const {
+      chapterName,
+      defaultStartTime,
+      graceMinutes,
+      requirePhoneLast4OnSearch,
+      qrKey,
+      qrSecurityEnabled,
+    } = req.body;
     let settings = await Settings.findOne();
 
     if (!settings) {
@@ -63,6 +71,24 @@ export async function updateSettings(req, res, next) {
       settings.requirePhoneLast4OnSearch = Boolean(requirePhoneLast4OnSearch);
     }
 
+    if (qrSecurityEnabled !== undefined) {
+      settings.qrSecurityEnabled = Boolean(qrSecurityEnabled);
+    }
+
+    if (qrKey !== undefined) {
+      const cleanKey = String(qrKey).trim();
+      if (!cleanKey || cleanKey.length < 3) {
+        return res.status(400).json({
+          success: false,
+          message: 'QR Key must be at least 3 characters.',
+        });
+      }
+      if (cleanKey !== settings.qrKey) {
+        settings.qrKey = cleanKey;
+        settings.qrRotatedAt = new Date();
+      }
+    }
+
     await settings.save();
 
     return res.status(200).json({
@@ -74,3 +100,26 @@ export async function updateSettings(req, res, next) {
     next(error);
   }
 }
+
+/**
+ * POST /api/admin/settings/regenerate-qr
+ * Instantly generates a new QR code key and invalidates all previous QR links
+ */
+export async function regenerateQrKey(req, res, next) {
+  try {
+    let settings = await Settings.getSettings();
+    const newQrKey = crypto.randomBytes(6).toString('hex');
+    settings.qrKey = newQrKey;
+    settings.qrRotatedAt = new Date();
+    await settings.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'New Chapter QR Code generated. Previous QR links are now invalid.',
+      settings,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+

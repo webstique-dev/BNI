@@ -17,6 +17,56 @@ export const DEVICE_COOKIE_NAME = 'device_token';
 const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
 /**
+ * Helper to verify QR code access token
+ */
+export function verifyQrAccess(req, settings) {
+  if (!settings || settings.qrSecurityEnabled === false) {
+    return { valid: true };
+  }
+
+  const providedKey =
+    req.headers['x-qr-key'] ||
+    req.query.qr ||
+    req.query.k ||
+    req.query.code ||
+    req.body?.qrKey ||
+    req.body?.qr;
+
+  if (!providedKey || typeof providedKey !== 'string') {
+    return {
+      valid: false,
+      message: 'No QR code key detected. Please scan the official chapter QR code displayed at the meeting desk.',
+    };
+  }
+
+  if (providedKey.trim() !== settings.qrKey) {
+    return {
+      valid: false,
+      message: 'This attendance QR code has expired or is invalid. Please scan the official chapter QR code displayed at the meeting desk.',
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * GET /api/checkin/validate-qr
+ */
+export async function validateQr(req, res, next) {
+  try {
+    const settings = await Settings.getSettings();
+    const check = verifyQrAccess(req, settings);
+    return res.status(200).json({
+      success: true,
+      valid: check.valid,
+      message: check.valid ? 'QR code is valid' : check.message,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
  * Cookie options helper for device_token
  */
 export function getDeviceCookieOptions(req) {
@@ -117,6 +167,16 @@ async function linkDeviceAndSetCookie(res, memberId, userAgent = '', req = null)
  */
 export async function checkInByDevice(req, res, next) {
   try {
+    const settings = await Settings.getSettings();
+    const qrAccess = verifyQrAccess(req, settings);
+    if (!qrAccess.valid) {
+      return res.status(403).json({
+        success: false,
+        invalidQr: true,
+        message: qrAccess.message,
+      });
+    }
+
     const rawToken =
       req.body?.deviceToken ||
       req.cookies?.[DEVICE_COOKIE_NAME] ||
@@ -215,6 +275,16 @@ export async function checkInByDevice(req, res, next) {
  */
 export async function checkInByPhone(req, res, next) {
   try {
+    const settings = await Settings.getSettings();
+    const qrAccess = verifyQrAccess(req, settings);
+    if (!qrAccess.valid) {
+      return res.status(403).json({
+        success: false,
+        invalidQr: true,
+        message: qrAccess.message,
+      });
+    }
+
     const { phone } = req.body;
     const normalizedPhone = normalizePhone(phone);
 
@@ -277,6 +347,16 @@ export async function checkInByPhone(req, res, next) {
  */
 export async function registerAndCheckIn(req, res, next) {
   try {
+    const settings = await Settings.getSettings();
+    const qrAccess = verifyQrAccess(req, settings);
+    if (!qrAccess.valid) {
+      return res.status(403).json({
+        success: false,
+        invalidQr: true,
+        message: qrAccess.message,
+      });
+    }
+
     const { phone, name, company, category } = req.body;
     const normalizedPhone = normalizePhone(phone);
 
@@ -349,6 +429,16 @@ export async function registerAndCheckIn(req, res, next) {
  */
 export async function searchMembers(req, res, next) {
   try {
+    const settings = await Settings.getSettings();
+    const qrAccess = verifyQrAccess(req, settings);
+    if (!qrAccess.valid) {
+      return res.status(403).json({
+        success: false,
+        invalidQr: true,
+        message: qrAccess.message,
+      });
+    }
+
     const q = req.query.q ? String(req.query.q).trim() : '';
 
     // If q is 'all', return all active members for client-side instant fuzzy search
@@ -431,6 +521,16 @@ export async function searchMembers(req, res, next) {
  */
 export async function checkInBySearch(req, res, next) {
   try {
+    const settings = await Settings.getSettings();
+    const qrAccess = verifyQrAccess(req, settings);
+    if (!qrAccess.valid) {
+      return res.status(403).json({
+        success: false,
+        invalidQr: true,
+        message: qrAccess.message,
+      });
+    }
+
     const { memberId, phoneLast4, rememberDevice } = req.body;
 
     if (!memberId) {
@@ -447,8 +547,6 @@ export async function checkInBySearch(req, res, next) {
         message: 'Member not found or inactive.',
       });
     }
-
-    const settings = await Settings.getSettings();
 
     // Check last 4 digits if enabled
     if (settings.requirePhoneLast4OnSearch) {
@@ -517,6 +615,7 @@ export async function getPublicInfo(req, res, next) {
       chapterName: settings.chapterName || 'BNI Jubilant – Chennai CBD A',
       defaultStartTime: settings.defaultStartTime || '08:00',
       requirePhoneLast4OnSearch: settings.requirePhoneLast4OnSearch ?? true,
+      qrSecurityEnabled: settings.qrSecurityEnabled ?? true,
       today,
     });
   } catch (error) {

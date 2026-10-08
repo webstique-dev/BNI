@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, Navigate, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -12,10 +12,22 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { Preloader } from '../components/Skeleton';
 import bniLogo from '../assests/BNI_Jubilant_Chennai_CBD_logo.png';
+import { api } from '../services/api';
 
 export default function AdminLayout() {
   const { admin, loading, logout } = useAuth();
   const navigate = useNavigate();
+  const [qrKey, setQrKey] = useState('');
+
+  useEffect(() => {
+    if (admin) {
+      api.getSettings().then((res) => {
+        if (res?.success && res.settings?.qrKey) {
+          setQrKey(res.settings.qrKey);
+        }
+      }).catch(() => {});
+    }
+  }, [admin]);
 
   if (loading) {
     return (
@@ -64,7 +76,7 @@ export default function AdminLayout() {
             {/* Right: Quick actions & Logout */}
             <div className="flex items-center space-x-3">
               <NavLink
-                to="/"
+                to={`/${qrKey ? `?qr=${encodeURIComponent(qrKey)}` : ''}`}
                 target="_blank"
                 className="hidden sm:inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 transition-colors border border-stone-700"
                 title="Open Member QR Scan Page"

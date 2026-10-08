@@ -10,6 +10,9 @@ import {
   Sparkles,
   ArrowRight,
   LogOut,
+  QrCode,
+  ShieldAlert,
+  RefreshCw,
 } from 'lucide-react';
 import Header from '../components/Header';
 import SuccessCheckmark from '../components/SuccessCheckmark';
@@ -22,14 +25,29 @@ export default function Home() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
-  // Extract possible parameters from third-party QR codes
+  // Extract possible parameters from QR codes
   const urlPhone = searchParams.get('phone') || searchParams.get('p') || searchParams.get('mobile');
   const urlToken = searchParams.get('token') || searchParams.get('t') || searchParams.get('deviceToken');
+  const urlQr = searchParams.get('qr') || searchParams.get('k') || searchParams.get('code');
 
-  const [stage, setStage] = useState('checking'); // 'checking' | 'success' | 'phone_input' | 'register_input'
+  const [stage, setStage] = useState('checking'); // 'checking' | 'success' | 'phone_input' | 'register_input' | 'invalid_qr'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [qrErrorMessage, setQrErrorMessage] = useState('');
   const [publicInfo, setPublicInfo] = useState(null);
+  const [activeQrKey, setActiveQrKey] = useState(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        return (
+          urlQr ||
+          sessionStorage.getItem('bni_qr_key') ||
+          localStorage.getItem('bni_qr_key') ||
+          ''
+        );
+      }
+    } catch (e) {}
+    return urlQr || '';
+  });
 
   // Data states
   const [result, setResult] = useState(null); // { member, checkInAt, status, alreadyMarked, checkInTimeFormatted, punctuality, punctualityMessage }
@@ -50,11 +68,58 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    // If URL contains QR key, persist it
+    if (urlQr && typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('bni_qr_key', urlQr);
+        localStorage.setItem('bni_qr_key', urlQr);
+        setActiveQrKey(urlQr);
+      } catch (e) {}
+    }
+
     // If URL contains token, persist it
     if (urlToken && typeof window !== 'undefined') {
       try {
         localStorage.setItem('bni_device_token', urlToken);
       } catch (e) {}
+    }
+
+    // First validate QR key with server if QR security is active
+    initiateCheckInFlow(urlQr || activeQrKey);
+  }, [location.key, urlPhone, urlToken, urlQr]);
+
+  async function initiateCheckInFlow(qrKeyToUse) {
+    setStage('checking');
+    setError('');
+    setQrErrorMessage('');
+
+    const effectiveKey =
+      qrKeyToUse ||
+      (typeof window !== 'undefined'
+        ? sessionStorage.getItem('bni_qr_key') || localStorage.getItem('bni_qr_key')
+        : '');
+
+    try {
+      // Validate QR code first
+      const valRes = await api.validateQr(effectiveKey);
+      if (!valRes?.valid) {
+        setQrErrorMessage(
+          valRes?.message ||
+            'This attendance QR code is invalid or has expired. Please scan the current chapter QR code displayed at the registration desk.'
+        );
+        setStage('invalid_qr');
+        return;
+      }
+    } catch (err) {
+      // If validation explicitly reports invalid QR
+      if (err?.data?.invalidQr || err?.status === 403) {
+        setQrErrorMessage(
+          err.message ||
+            'This attendance QR code is invalid or has expired. Please scan the current chapter QR code displayed at the registration desk.'
+        );
+        setStage('invalid_qr');
+        return;
+      }
     }
 
     // If explicit phone is in QR URL, check in with phone immediately
@@ -68,7 +133,7 @@ export default function Home() {
 
     // Always attempt device recognition on QR scan
     attemptDeviceCheckIn();
-  }, [location.key, urlPhone, urlToken]);
+  }
 
   async function checkInDirectlyByPhone(cleanPhone) {
     setStage('checking');
@@ -88,8 +153,13 @@ export default function Home() {
         setStage('phone_input');
       }
     } catch (err) {
-      setError(err.message || 'Check-in failed');
-      setStage('phone_input');
+      if (err?.data?.invalidQr || err?.status === 403) {
+        setQrErrorMessage(err.message);
+        setStage('invalid_qr');
+      } else {
+        setError(err.message || 'Check-in failed');
+        setStage('phone_input');
+      }
     } finally {
       setLoading(false);
     }
@@ -107,8 +177,13 @@ export default function Home() {
         setStage('phone_input');
       }
     } catch (err) {
-      // 401 or unrecognized device
-      setStage('phone_input');
+      if (err?.data?.invalidQr || err?.status === 403) {
+        setQrErrorMessage(err.message);
+        setStage('invalid_qr');
+      } else {
+        // 401 or unrecognized device -> prompt for phone
+        setStage('phone_input');
+      }
     }
   }
 
@@ -136,7 +211,12 @@ export default function Home() {
         }
       }
     } catch (err) {
-      setError(err.message || 'Check-in failed. Please try again.');
+      if (err?.data?.invalidQr || err?.status === 403) {
+        setQrErrorMessage(err.message);
+        setStage('invalid_qr');
+      } else {
+        setError(err.message || 'Check-in failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -209,6 +289,50 @@ export default function Home() {
         {stage === 'checking' && (
           <div className="w-full bg-white rounded-3xl p-6 shadow-card border border-bni-gold/20 text-center">
             <Preloader text="Recognizing your device..." />
+          </div>
+        )}
+
+        {/* 1.5. INVALID / EXPIRED QR CODE STATE */}
+        {stage === 'invalid_qr' && (
+          <div className="w-full bg-white rounded-3xl p-6 sm:p-8 shadow-card border border-rose-200 text-center animate-scale-in">
+            <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-rose-200 shadow-xs">
+              <ShieldAlert className="w-7 h-7" />
+            </div>
+
+            <h2 className="text-2xl font-heading font-bold text-bni-charcoal">
+              Scan Official Chapter QR
+            </h2>
+
+            <div className="my-4 p-4 rounded-2xl bg-rose-50/80 border border-rose-200/80 text-left space-y-2">
+              <p className="text-xs sm:text-sm font-semibold text-rose-900 leading-relaxed">
+                {qrErrorMessage ||
+                  'This attendance QR code is invalid or has expired. Saved photos of old QR codes no longer work.'}
+              </p>
+              <p className="text-xs text-rose-800/90 leading-relaxed">
+                To mark your attendance, please scan the current official chapter QR code displayed on the registration desk or banner in the meeting hall.
+              </p>
+            </div>
+
+            <div className="pt-2 space-y-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.location.reload();
+                  }
+                }}
+                className="w-full py-3.5 px-4 rounded-xl bg-bni-charcoal hover:bg-stone-800 text-white text-xs sm:text-sm font-bold shadow-md transition-all flex items-center justify-center space-x-2"
+              >
+                <RefreshCw className="w-4 h-4 text-bni-gold" />
+                <span>Retry / Refresh Page</span>
+              </button>
+
+              <div className="pt-2 text-center">
+                <p className="text-[11px] text-stone-400">
+                  {publicInfo?.chapterName || 'BNI Jubilant Chapter'} · Dynamic QR Security
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -355,7 +479,7 @@ export default function Home() {
 
             <div className="mt-6 pt-5 border-t border-stone-100 text-center">
               <Link
-                to="/find"
+                to={`/find${activeQrKey ? `?qr=${encodeURIComponent(activeQrKey)}` : ''}`}
                 className="text-xs sm:text-sm font-semibold text-bni-gold-dark hover:text-bni-charcoal transition-colors inline-flex items-center space-x-1"
               >
                 <Search className="w-4 h-4 text-bni-gold" />

@@ -10,7 +10,7 @@ async function request(endpoint, options = {}) {
     headers['Content-Type'] = 'application/json';
   }
 
-  // Attach token from localStorage if present
+  // Attach token and QR key from storage if present
   try {
     if (typeof window !== 'undefined') {
       const adminToken = localStorage.getItem('bni_admin_token');
@@ -20,6 +20,12 @@ async function request(endpoint, options = {}) {
       const deviceToken = localStorage.getItem('bni_device_token');
       if (deviceToken) {
         headers['x-device-token'] = deviceToken;
+      }
+      const qrKey =
+        sessionStorage.getItem('bni_qr_key') ||
+        localStorage.getItem('bni_qr_key');
+      if (qrKey) {
+        headers['x-qr-key'] = qrKey;
       }
     }
   } catch (e) {
@@ -66,8 +72,10 @@ async function request(endpoint, options = {}) {
 }
 
 export const api = {
-  // Public check-in
+  // Public check-in & QR validation
   getPublicInfo: () => request('/public/info'),
+  validateQr: (qr) =>
+    request(`/checkin/validate-qr${qr ? `?qr=${encodeURIComponent(qr)}` : ''}`),
   checkInByDevice: () => {
     let deviceToken = '';
     let memberId = '';
@@ -182,6 +190,10 @@ export const api = {
     request('/admin/settings', {
       method: 'PUT',
       body: JSON.stringify(data),
+    }),
+  regenerateQrKey: () =>
+    request('/admin/settings/regenerate-qr', {
+      method: 'POST',
     }),
 
   // Admin Reports & Excel Exports

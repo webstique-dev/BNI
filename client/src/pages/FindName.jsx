@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import Fuse from 'fuse.js';
 import {
   Search,
@@ -17,6 +17,8 @@ import {
   Eye,
   EyeOff,
   Clock,
+  ShieldAlert,
+  RefreshCw,
 } from 'lucide-react';
 import Header from '../components/Header';
 import Modal from '../components/Modal';
@@ -27,11 +29,28 @@ import { SearchResultSkeleton } from '../components/Skeleton';
 import { api } from '../services/api';
 
 export default function FindName() {
+  const [searchParams] = useSearchParams();
+  const urlQr = searchParams.get('qr') || searchParams.get('k') || searchParams.get('code');
+
   const [query, setQuery] = useState('');
   const [allMembers, setAllMembers] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [qrError, setQrError] = useState('');
+  const [activeQrKey, setActiveQrKey] = useState(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        return (
+          urlQr ||
+          sessionStorage.getItem('bni_qr_key') ||
+          localStorage.getItem('bni_qr_key') ||
+          ''
+        );
+      }
+    } catch (e) {}
+    return urlQr || '';
+  });
   
   // Public settings
   const [publicInfo, setPublicInfo] = useState({
@@ -50,15 +69,54 @@ export default function FindName() {
   const [checkInResult, setCheckInResult] = useState(null);
 
   useEffect(() => {
-    loadPublicInfoAndMembers();
-  }, []);
+    if (urlQr && typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('bni_qr_key', urlQr);
+        localStorage.setItem('bni_qr_key', urlQr);
+        setActiveQrKey(urlQr);
+      } catch (e) {}
+    }
+    loadPublicInfoAndMembers(urlQr || activeQrKey);
+  }, [urlQr]);
 
-  async function loadPublicInfoAndMembers() {
+  async function loadPublicInfoAndMembers(qrKeyToUse) {
     try {
       setInitialLoading(true);
+      setQrError('');
+
+      const effectiveKey =
+        qrKeyToUse ||
+        (typeof window !== 'undefined'
+          ? sessionStorage.getItem('bni_qr_key') || localStorage.getItem('bni_qr_key')
+          : '');
+
+      // Check QR validation first
+      try {
+        const valRes = await api.validateQr(effectiveKey);
+        if (!valRes?.valid) {
+          setQrError(
+            valRes?.message ||
+              'This attendance QR code is invalid or has expired. Please scan the current chapter QR code displayed at the registration desk.'
+          );
+          setInitialLoading(false);
+          return;
+        }
+      } catch (err) {
+        if (err?.data?.invalidQr || err?.status === 403) {
+          setQrError(err.message);
+          setInitialLoading(false);
+          return;
+        }
+      }
+
       const [infoRes, membersRes] = await Promise.all([
         api.getPublicInfo().catch(() => null),
-        api.searchMembers('__all__').catch(() => null),
+        api.searchMembers('__all__').catch((err) => {
+          if (err?.data?.invalidQr || err?.status === 403) {
+            setQrError(err.message);
+          }
+          return null;
+        }),
       ]);
 
       if (infoRes?.success) {
@@ -163,7 +221,7 @@ export default function FindName() {
         {/* Navigation back */}
         <div className="mb-4">
           <Link
-            to="/"
+            to={`/${activeQrKey ? `?qr=${encodeURIComponent(activeQrKey)}` : ''}`}
             className="inline-flex items-center space-x-1.5 text-xs font-semibold text-stone-600 hover:text-bni-red transition-colors py-1.5 px-3 rounded-lg hover:bg-stone-100/60"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -171,8 +229,42 @@ export default function FindName() {
           </Link>
         </div>
 
-        {/* If Check-in succeeded */}
-        {checkInResult ? (
+        {/* QR Error State */}
+        {qrError ? (
+          <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-card border border-rose-200 text-center animate-scale-in">
+            <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-rose-200 shadow-xs">
+              <ShieldAlert className="w-7 h-7" />
+            </div>
+
+            <h2 className="text-2xl font-heading font-bold text-bni-charcoal">
+              Scan Official Chapter QR
+            </h2>
+
+            <div className="my-4 p-4 rounded-2xl bg-rose-50/80 border border-rose-200/80 text-left space-y-2">
+              <p className="text-xs sm:text-sm font-semibold text-rose-900 leading-relaxed">
+                {qrError}
+              </p>
+              <p className="text-xs text-rose-800/90 leading-relaxed">
+                Please scan the current official chapter QR code displayed at the registration desk to mark attendance.
+              </p>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.location.reload();
+                  }
+                }}
+                className="w-full py-3.5 px-4 rounded-xl bg-bni-charcoal hover:bg-stone-800 text-white text-xs sm:text-sm font-bold shadow-md transition-all flex items-center justify-center space-x-2"
+              >
+                <RefreshCw className="w-4 h-4 text-bni-gold" />
+                <span>Refresh Page</span>
+              </button>
+            </div>
+          </div>
+        ) : checkInResult ? (
           <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-card border border-bni-gold/30 text-center animate-scale-in">
             {checkInResult.punctualityMessage && (
               <PunctualityToast

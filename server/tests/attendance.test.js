@@ -7,9 +7,11 @@ import Meeting from '../src/models/Meeting.js';
 import Settings from '../src/models/Settings.js';
 import Attendance from '../src/models/Attendance.js';
 import Device from '../src/models/Device.js';
+import Admin from '../src/models/Admin.js';
 import { calculateAttendanceStatus, getKolkataToday } from '../src/utils/time.js';
 
 let mongoServer;
+const TEST_QR_KEY = 'test-qr-key-123';
 
 beforeAll(async () => {
   mongoServer = await MongoMemoryServer.create();
@@ -22,6 +24,8 @@ beforeAll(async () => {
     defaultStartTime: '08:00',
     graceMinutes: 0,
     requirePhoneLast4OnSearch: true,
+    qrKey: TEST_QR_KEY,
+    qrSecurityEnabled: true,
   });
 });
 
@@ -35,6 +39,8 @@ beforeEach(async () => {
   await Attendance.deleteMany({});
   await Device.deleteMany({});
   await Meeting.deleteMany({});
+  // Ensure default test settings with TEST_QR_KEY
+  await Settings.updateOne({}, { $set: { qrKey: TEST_QR_KEY, qrSecurityEnabled: true, defaultStartTime: '08:00', graceMinutes: 0 } }, { upsert: true });
 });
 
 describe('BNI Attendance Unit & Integration Tests', () => {
@@ -75,6 +81,7 @@ describe('BNI Attendance Unit & Integration Tests', () => {
     test('returns isNew: true when phone is unrecognized', async () => {
       const res = await request(app)
         .post('/api/checkin/phone')
+        .set('x-qr-key', TEST_QR_KEY)
         .send({ phone: '9840199999' });
 
       expect(res.status).toBe(200);
@@ -86,6 +93,7 @@ describe('BNI Attendance Unit & Integration Tests', () => {
     test('registers new member, creates attendance, and sets device cookie', async () => {
       const res = await request(app)
         .post('/api/checkin/register')
+        .set('x-qr-key', TEST_QR_KEY)
         .send({
           name: 'Arun Prakash',
           phone: '+91 98401 99999',
@@ -126,6 +134,7 @@ describe('BNI Attendance Unit & Integration Tests', () => {
       // First check-in via phone
       const res1 = await request(app)
         .post('/api/checkin/phone')
+        .set('x-qr-key', TEST_QR_KEY)
         .send({ phone: '9840112345' });
 
       expect(res1.status).toBe(200);
@@ -138,6 +147,7 @@ describe('BNI Attendance Unit & Integration Tests', () => {
       // Second check-in via device cookie
       const res2 = await request(app)
         .post('/api/checkin/device')
+        .set('x-qr-key', TEST_QR_KEY)
         .set('Cookie', cookie);
 
       expect(res2.status).toBe(200);
@@ -159,7 +169,10 @@ describe('BNI Attendance Unit & Integration Tests', () => {
         company: 'Zenith Interior Architects',
       });
 
-      const res = await request(app).get('/api/members/search?q=Karthik');
+      const res = await request(app)
+        .get('/api/members/search?q=Karthik')
+        .set('x-qr-key', TEST_QR_KEY);
+
       expect(res.status).toBe(200);
       expect(res.body.results.length).toBe(1);
       expect(res.body.results[0].name).toBe('Karthik Rajan');
@@ -174,6 +187,7 @@ describe('BNI Attendance Unit & Integration Tests', () => {
 
       const res = await request(app)
         .post('/api/checkin/search')
+        .set('x-qr-key', TEST_QR_KEY)
         .send({
           memberId: member._id.toString(),
           phoneLast4: '9999', // Incorrect last 4 (correct is 3456)
@@ -192,6 +206,7 @@ describe('BNI Attendance Unit & Integration Tests', () => {
 
       const res = await request(app)
         .post('/api/checkin/search')
+        .set('x-qr-key', TEST_QR_KEY)
         .send({
           memberId: member._id.toString(),
           phoneLast4: '3456',
@@ -246,5 +261,87 @@ describe('BNI Attendance Unit & Integration Tests', () => {
       expect(resultUpdated.message).toBe("Congratulations! You've arrived early. Thank you for being punctual. Keep it up!");
     });
   });
+
+  // 6. Dynamic QR Link Security and Rotation Tests
+  describe('Dynamic QR Link Security and Rotation', () => {
+    test('rejects check-in requests with missing or expired QR key (anti-photo cheating)', async () => {
+      // Attempt phone check-in with NO QR key
+      const noQrRes = await request(app)
+        .post('/api/checkin/phone')
+        .send({ phone: '9840112345' });
+
+      expect(noQrRes.status).toBe(403);
+      expect(noQrRes.body.invalidQr).toBe(true);
+
+      // Attempt phone check-in with an EXPIRED / OLD QR key from a saved photo
+      const oldQrRes = await request(app)
+        .post('/api/checkin/phone')
+        .set('x-qr-key', 'expired_old_qr_from_photo')
+        .send({ phone: '9840112345' });
+
+      expect(oldQrRes.status).toBe(403);
+      expect(oldQrRes.body.invalidQr).toBe(true);
+      expect(oldQrRes.body.message).toMatch(/expired or is invalid/i);
+    });
+
+    test('validate-qr endpoint verifies whether a QR key is current', async () => {
+      // Valid key
+      const validRes = await request(app)
+        .get(`/api/checkin/validate-qr?qr=${TEST_QR_KEY}`);
+
+      expect(validRes.status).toBe(200);
+      expect(validRes.body.valid).toBe(true);
+
+      // Expired / Invalid key
+      const invalidRes = await request(app)
+        .get('/api/checkin/validate-qr?qr=invalid_old_qr');
+
+      expect(invalidRes.status).toBe(200);
+      expect(invalidRes.body.valid).toBe(false);
+    });
+
+    test('admin rotating QR code immediately invalidates previous QR key', async () => {
+      // Create admin & generate token
+      const admin = await Admin.create({
+        username: 'admin_test',
+        passwordHash: 'hash',
+        name: 'Test Admin',
+      });
+      const jwt = (await import('jsonwebtoken')).default;
+      const secret = process.env.JWT_SECRET || 'super_secret_bni_jwt_key_jubilant_chennai_2026';
+      const token = jwt.sign(
+        { id: admin._id, username: admin.username, name: admin.name },
+        secret,
+        { expiresIn: '7d' }
+      );
+
+      // Check that TEST_QR_KEY works before rotation
+      const beforeRes = await request(app)
+        .get(`/api/checkin/validate-qr?qr=${TEST_QR_KEY}`);
+      expect(beforeRes.body.valid).toBe(true);
+
+      // Admin calls regenerate-qr
+      const regenRes = await request(app)
+        .post('/api/admin/settings/regenerate-qr')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(regenRes.status).toBe(200);
+      expect(regenRes.body.success).toBe(true);
+      const newQrKey = regenRes.body.settings.qrKey;
+      expect(newQrKey).toBeDefined();
+      expect(newQrKey).not.toBe(TEST_QR_KEY);
+
+      // Previous TEST_QR_KEY (e.g. from saved photo) is now immediately rejected!
+      const oldAfterRes = await request(app)
+        .get(`/api/checkin/validate-qr?qr=${TEST_QR_KEY}`);
+      expect(oldAfterRes.body.valid).toBe(false);
+
+      // New QR key is accepted
+      const newAfterRes = await request(app)
+        .get(`/api/checkin/validate-qr?qr=${newQrKey}`);
+      expect(newAfterRes.body.valid).toBe(true);
+    });
+  });
 });
+
 

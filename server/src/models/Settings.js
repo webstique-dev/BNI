@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import crypto from 'crypto';
 
 const settingsSchema = new mongoose.Schema(
   {
@@ -19,6 +20,19 @@ const settingsSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    qrKey: {
+      type: String,
+      default: () => crypto.randomBytes(6).toString('hex'),
+      trim: true,
+    },
+    qrRotatedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    qrSecurityEnabled: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true,
@@ -34,10 +48,18 @@ settingsSchema.statics.getSettings = async function () {
       defaultStartTime: '08:00',
       graceMinutes: 0,
       requirePhoneLast4OnSearch: true,
+      qrKey: crypto.randomBytes(6).toString('hex'),
+      qrRotatedAt: new Date(),
+      qrSecurityEnabled: true,
     });
+  } else if (!settings.qrKey) {
+    settings.qrKey = crypto.randomBytes(6).toString('hex');
+    settings.qrRotatedAt = new Date();
+    await settings.save();
   }
   return settings;
 };
 
 const Settings = mongoose.model('Settings', settingsSchema);
 export default Settings;
+

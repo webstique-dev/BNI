@@ -27,6 +27,7 @@ import {
 import {
   getSettings,
   updateSettings,
+  regenerateQrKey,
 } from '../controllers/adminSettingsController.js';
 import {
   getAttendanceReports,
@@ -107,6 +108,7 @@ router.post('/admin/members/import-csv', requireAdmin, upload.single('file'), im
 // Settings
 router.get('/admin/settings', requireAdmin, getSettings);
 router.put('/admin/settings', requireAdmin, updateSettings);
+router.post('/admin/settings/regenerate-qr', requireAdmin, regenerateQrKey);
 
 // Reports & Export
 router.get('/admin/reports', requireAdmin, getAttendanceReports);

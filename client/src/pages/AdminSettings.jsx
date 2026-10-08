@@ -14,10 +14,18 @@ import {
   User,
   Eye,
   EyeOff,
+  QrCode,
+  RefreshCw,
+  Copy,
+  Check,
+  ExternalLink,
+  Smartphone,
+  AlertTriangle,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
+import ChapterQRCodeModal from '../components/ChapterQRCodeModal';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 export default function AdminSettings() {
@@ -27,6 +35,12 @@ export default function AdminSettings() {
   const [defaultStartTime, setDefaultStartTime] = useState('08:00');
   const [graceMinutes, setGraceMinutes] = useState(0);
   const [requirePhoneLast4OnSearch, setRequirePhoneLast4OnSearch] = useState(true);
+  const [qrKey, setQrKey] = useState('');
+  const [qrRotatedAt, setQrRotatedAt] = useState(null);
+  const [qrSecurityEnabled, setQrSecurityEnabled] = useState(true);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [regeneratingQr, setRegeneratingQr] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Admin users list
   const [admins, setAdmins] = useState([]);
@@ -58,6 +72,9 @@ export default function AdminSettings() {
         setDefaultStartTime(res.settings.defaultStartTime || '08:00');
         setGraceMinutes(res.settings.graceMinutes ?? 0);
         setRequirePhoneLast4OnSearch(res.settings.requirePhoneLast4OnSearch ?? true);
+        setQrKey(res.settings.qrKey || '');
+        setQrRotatedAt(res.settings.qrRotatedAt ? new Date(res.settings.qrRotatedAt) : null);
+        setQrSecurityEnabled(res.settings.qrSecurityEnabled ?? true);
       }
     } catch (err) {
       setErrorMessage(err.message || 'Failed to load settings');
@@ -87,18 +104,58 @@ export default function AdminSettings() {
     setErrorMessage('');
 
     try {
-      await api.updateSettings({
+      const res = await api.updateSettings({
         chapterName,
         defaultStartTime,
         graceMinutes: Number(graceMinutes),
         requirePhoneLast4OnSearch,
+        qrKey: qrKey.trim(),
+        qrSecurityEnabled,
       });
+      if (res?.settings) {
+        setQrKey(res.settings.qrKey || '');
+        setQrRotatedAt(res.settings.qrRotatedAt ? new Date(res.settings.qrRotatedAt) : null);
+      }
       setMessage('Chapter settings saved successfully.');
       setTimeout(() => setMessage(''), 3500);
     } catch (err) {
       setErrorMessage(err.message || 'Failed to update settings.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleRegenerateQr() {
+    if (
+      !window.confirm(
+        'Are you sure you want to regenerate the QR code? Any printed codes or saved photos of the old QR code will stop working immediately.'
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setRegeneratingQr(true);
+      const res = await api.regenerateQrKey();
+      if (res?.success && res.settings) {
+        setQrKey(res.settings.qrKey);
+        setQrRotatedAt(new Date(res.settings.qrRotatedAt || Date.now()));
+        setMessage('New Chapter QR Link generated! Previous QR links and photos are now invalid.');
+        setTimeout(() => setMessage(''), 5000);
+      }
+    } catch (err) {
+      setErrorMessage(err.message || 'Failed to regenerate QR code');
+    } finally {
+      setRegeneratingQr(false);
+    }
+  }
+
+  function handleCopyQrLink() {
+    const fullLink = `${window.location.origin}/?qr=${encodeURIComponent(qrKey || '')}`;
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(fullLink);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
     }
   }
 
@@ -287,7 +344,113 @@ export default function AdminSettings() {
         </div>
       </form>
 
-      {/* 2. Admin Accounts Management Section */}
+      {/* 2. Attendance QR Code Link & Security Section */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-card border border-stone-200 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-stone-100 pb-4 gap-3">
+          <div>
+            <h3 className="text-lg font-bold font-heading text-bni-charcoal flex items-center space-x-2">
+              <QrCode className="w-5 h-5 text-bni-gold" />
+              <span>Attendance QR Link & Security</span>
+            </h3>
+            <p className="text-xs text-stone-500 mt-0.5">
+              Change the QR link so saved photos of previous QR codes immediately stop working
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setIsQrModalOpen(true)}
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-bni-red to-bni-red-dark hover:from-bni-red-dark hover:to-bni-red text-white text-xs font-bold transition-all shadow-xs"
+            >
+              <QrCode className="w-4 h-4" />
+              <span>Preview & Print QR</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Live QR Link Display */}
+        <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200/80 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <span className="text-xs font-semibold text-stone-700 uppercase tracking-wider block">
+                Active QR Attendance URL
+              </span>
+              <p className="text-xs text-stone-500">
+                The URL encoded inside the chapter meeting QR code.
+              </p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={handleCopyQrLink}
+                className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-white border border-stone-200 hover:bg-stone-100 text-bni-charcoal text-xs font-bold transition-colors shadow-2xs"
+              >
+                {copiedLink ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-emerald-700">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 text-stone-600" />
+                    <span>Copy Link</span>
+                  </>
+                )}
+              </button>
+              <a
+                href={`${window.location.origin}/?qr=${encodeURIComponent(qrKey || '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-white border border-stone-200 hover:bg-stone-100 text-stone-700 text-xs font-semibold transition-colors shadow-2xs"
+              >
+                <span>Test Link</span>
+                <ExternalLink className="w-3 h-3 text-stone-400" />
+              </a>
+            </div>
+          </div>
+
+          <div className="p-3 bg-white rounded-xl border border-stone-200 font-mono text-xs text-bni-charcoal break-all flex items-center justify-between">
+            <span>{`${window.location.origin}/?qr=${qrKey || ''}`}</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-sans font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0 ml-2">
+              Active
+            </span>
+          </div>
+
+          {qrRotatedAt && (
+            <p className="text-[11px] text-stone-500">
+              Last rotated: <span className="font-semibold text-stone-700">{qrRotatedAt.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} at {qrRotatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </p>
+          )}
+        </div>
+
+        {/* Change QR Code Button & Security Info */}
+        <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80">
+          <div className="space-y-1">
+            <div className="flex items-center space-x-1.5">
+              <ShieldCheck className="w-4 h-4 text-amber-700" />
+              <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                Photo Anti-Cheating Protection
+              </h4>
+            </div>
+            <p className="text-xs text-amber-800/90 leading-relaxed max-w-md">
+              Whenever you change or rotate this QR code, any members with saved screenshots or photos of previous QR codes will be rejected automatically.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleRegenerateQr}
+            disabled={regeneratingQr}
+            className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all shadow-xs flex items-center space-x-2 shrink-0 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${regeneratingQr ? 'animate-spin' : ''}`} />
+            <span>{regeneratingQr ? 'Regenerating...' : 'Regenerate QR Code Now'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 3. Admin Accounts Management Section */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-card border border-stone-200 space-y-6">
         <div className="flex items-center justify-between border-b border-stone-100 pb-4">
           <div>
@@ -457,6 +620,16 @@ export default function AdminSettings() {
           </div>
         </form>
       </Modal>
+
+      {/* Chapter Official QR Modal */}
+      <ChapterQRCodeModal
+        isOpen={isQrModalOpen}
+        onClose={() => setIsQrModalOpen(false)}
+        onQrUpdated={(newSettings) => {
+          setQrKey(newSettings.qrKey);
+          setQrRotatedAt(new Date(newSettings.qrRotatedAt || Date.now()));
+        }}
+      />
     </div>
   );
 }

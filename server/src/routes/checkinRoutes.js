@@ -7,6 +7,7 @@ import {
   searchMembers,
   checkInBySearch,
   getPublicInfo,
+  validateQr,
   forgetDevice,
 } from '../controllers/checkinController.js';
 import {
@@ -42,8 +43,9 @@ const searchCheckInSchema = z.object({
   }),
 });
 
-// Public info
+// Public info & QR validation
 router.get('/public/info', getPublicInfo);
+router.get('/checkin/validate-qr', validateQr);
 
 // Device auto check-in (from QR landing page)
 router.post('/checkin/device', generalCheckInLimiter, checkInByDevice);
