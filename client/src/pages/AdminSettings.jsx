@@ -40,6 +40,7 @@ export default function AdminSettings() {
   const [qrSecurityEnabled, setQrSecurityEnabled] = useState(true);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [regeneratingQr, setRegeneratingQr] = useState(false);
+  const [showRegenConfirm, setShowRegenConfirm] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
   // Admin users list
@@ -72,7 +73,7 @@ export default function AdminSettings() {
         setDefaultStartTime(res.settings.defaultStartTime || '08:00');
         setGraceMinutes(res.settings.graceMinutes ?? 0);
         setRequirePhoneLast4OnSearch(res.settings.requirePhoneLast4OnSearch ?? true);
-        setQrKey(res.settings.qrKey || '');
+        setQrKey(res.settings.qrKey || 'bni-jubilant-official');
         setQrRotatedAt(res.settings.qrRotatedAt ? new Date(res.settings.qrRotatedAt) : null);
         setQrSecurityEnabled(res.settings.qrSecurityEnabled ?? true);
       }
@@ -109,13 +110,7 @@ export default function AdminSettings() {
         defaultStartTime,
         graceMinutes: Number(graceMinutes),
         requirePhoneLast4OnSearch,
-        qrKey: qrKey.trim(),
-        qrSecurityEnabled,
       });
-      if (res?.settings) {
-        setQrKey(res.settings.qrKey || '');
-        setQrRotatedAt(res.settings.qrRotatedAt ? new Date(res.settings.qrRotatedAt) : null);
-      }
       setMessage('Chapter settings saved successfully.');
       setTimeout(() => setMessage(''), 3500);
     } catch (err) {
@@ -126,16 +121,9 @@ export default function AdminSettings() {
   }
 
   async function handleRegenerateQr() {
-    if (
-      !window.confirm(
-        'Are you sure you want to regenerate the QR code? Any printed codes or saved photos of the old QR code will stop working immediately.'
-      )
-    ) {
-      return;
-    }
-
     try {
       setRegeneratingQr(true);
+      setShowRegenConfirm(false);
       const res = await api.regenerateQrKey();
       if (res?.success && res.settings) {
         setQrKey(res.settings.qrKey);
@@ -425,28 +413,60 @@ export default function AdminSettings() {
         </div>
 
         {/* Change QR Code Button & Security Info */}
-        <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80">
-          <div className="space-y-1">
-            <div className="flex items-center space-x-1.5">
-              <ShieldCheck className="w-4 h-4 text-amber-700" />
-              <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wider">
-                Photo Anti-Cheating Protection
-              </h4>
+        <div className="pt-2 p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center space-x-1.5">
+                <ShieldCheck className="w-4 h-4 text-amber-700" />
+                <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                  Photo Anti-Cheating Protection
+                </h4>
+              </div>
+              <p className="text-xs text-amber-800/90 leading-relaxed max-w-md">
+                The chapter QR code remains permanent and never changes automatically. It changes only when you explicitly click and confirm below.
+              </p>
             </div>
-            <p className="text-xs text-amber-800/90 leading-relaxed max-w-md">
-              Whenever you change or rotate this QR code, any members with saved screenshots or photos of previous QR codes will be rejected automatically.
-            </p>
+
+            {!showRegenConfirm && (
+              <button
+                type="button"
+                onClick={() => setShowRegenConfirm(true)}
+                className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all shadow-xs flex items-center space-x-2 shrink-0"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Change / Regenerate QR Link</span>
+              </button>
+            )}
           </div>
 
-          <button
-            type="button"
-            onClick={handleRegenerateQr}
-            disabled={regeneratingQr}
-            className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all shadow-xs flex items-center space-x-2 shrink-0 disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${regeneratingQr ? 'animate-spin' : ''}`} />
-            <span>{regeneratingQr ? 'Regenerating...' : 'Regenerate QR Code Now'}</span>
-          </button>
+          {showRegenConfirm && (
+            <div className="pt-2 border-t border-amber-200 text-left space-y-2 animate-scale-in">
+              <div className="flex items-start space-x-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-xs font-semibold text-amber-900 leading-relaxed">
+                  Are you sure you want to change the QR code? Any printed codes or saved photos of the current QR code will stop working immediately.
+                </p>
+              </div>
+              <div className="flex items-center space-x-2 justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowRegenConfirm(false)}
+                  className="px-3.5 py-1.5 rounded-xl border border-stone-300 text-stone-700 text-xs font-semibold hover:bg-stone-100 bg-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRegenerateQr}
+                  disabled={regeneratingQr}
+                  className="px-4 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs flex items-center space-x-1.5 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${regeneratingQr ? 'animate-spin' : ''}`} />
+                  <span>{regeneratingQr ? 'Rotating...' : 'Yes, Invalidate Old QR & Change'}</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

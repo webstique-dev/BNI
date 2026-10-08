@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
-import crypto from 'crypto';
+
+const DEFAULT_STATIC_QR_KEY = 'bni-jubilant-official';
 
 const settingsSchema = new mongoose.Schema(
   {
@@ -22,7 +23,7 @@ const settingsSchema = new mongoose.Schema(
     },
     qrKey: {
       type: String,
-      default: () => crypto.randomBytes(6).toString('hex'),
+      default: DEFAULT_STATIC_QR_KEY,
       trim: true,
     },
     qrRotatedAt: {
@@ -48,12 +49,12 @@ settingsSchema.statics.getSettings = async function () {
       defaultStartTime: '08:00',
       graceMinutes: 0,
       requirePhoneLast4OnSearch: true,
-      qrKey: crypto.randomBytes(6).toString('hex'),
+      qrKey: DEFAULT_STATIC_QR_KEY,
       qrRotatedAt: new Date(),
       qrSecurityEnabled: true,
     });
   } else if (!settings.qrKey) {
-    settings.qrKey = crypto.randomBytes(6).toString('hex');
+    settings.qrKey = DEFAULT_STATIC_QR_KEY;
     settings.qrRotatedAt = new Date();
     await settings.save();
   }
@@ -62,4 +63,5 @@ settingsSchema.statics.getSettings = async function () {
 
 const Settings = mongoose.model('Settings', settingsSchema);
 export default Settings;
+
 
